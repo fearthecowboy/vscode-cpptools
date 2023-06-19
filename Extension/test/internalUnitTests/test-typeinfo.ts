@@ -4,7 +4,7 @@
  * ------------------------------------------------------------------------------------------ */
 
 import { describe, it } from 'mocha';
-import assert, { ok, strictEqual } from 'node:assert';
+import { ok, strictEqual } from 'node:assert';
 import { Async } from '../../src/Automation/Async/constructor';
 import { out } from '../../src/Automation/Eventing/channels';
 import { is } from '../../src/Automation/System/guards';
@@ -43,8 +43,8 @@ describe('Type Information', () => {
     });
 
     it('is not failing subtest', () => {
-        assert.ok(true, 'looks ok');
-        // assert.ok(false,'some relevant assertion here');
+        ok(true, 'looks ok');
+        // ok(false,'some relevant assertion here');
     });
 
     it.skip('Show the names of what typeOf returns', async () => {
