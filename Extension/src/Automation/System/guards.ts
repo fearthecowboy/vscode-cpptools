@@ -5,6 +5,7 @@
 
 import { Socket } from 'node:net';
 import { isPromise } from 'node:util/types';
+import { Emitter } from '../Eventing/emitter';
 import { AsyncConstructor, Constructor, Primitive } from './types';
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -63,5 +64,14 @@ export class is {
 
     static function(instance: any): instance is Function {
         return typeof instance === 'function';
+    }
+    static emitter(instance: any): instance is Emitter {
+        return (typeof instance?.isKnownEvent) === 'function';
+    }
+    static cancelled(instance: any): instance is 'Cancelled' {
+        return instance === 'Cancelled';
+    }
+    static continue(instance: any): instance is undefined {
+        return instance === undefined;
     }
 }
