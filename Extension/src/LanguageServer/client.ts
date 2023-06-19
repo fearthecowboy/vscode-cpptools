@@ -1041,7 +1041,7 @@ export class DefaultClient implements Client {
                 settings.defaultCompilerPath = "";
                 configurationSelected = true;
                 if (showSecondPrompt) {
-                    await this.showPrompt(selectIntelliSenseConfig, true, sender);
+                    void this.showPrompt(selectIntelliSenseConfig, true, sender);
                 }
                 return ui.ShowConfigureIntelliSenseButton(false, this);
             }
@@ -1092,7 +1092,7 @@ export class DefaultClient implements Client {
                 }
             }
 
-            await ui.ShowConfigureIntelliSenseButton(false, this);
+            void ui.ShowConfigureIntelliSenseButton(false, this);
             await this.addTrustedCompiler(settings.defaultCompilerPath);
             DefaultClient.updateClientConfigurations();
         } finally {
@@ -1148,19 +1148,19 @@ export class DefaultClient implements Client {
                     await this.addTrustedCompiler(settings.defaultCompilerPath);
                     DefaultClient.updateClientConfigurations();
                     action = "confirm compiler";
-                    await ui.ShowConfigureIntelliSenseButton(false, this);
+                    void ui.ShowConfigureIntelliSenseButton(false, this);
                 } else if (value === selectCompiler) {
                     await this.handleIntelliSenseConfigurationQuickPick(true, sender, true);
                     action = "show quickpick";
                 } else {
-                    await this.showPrompt(selectCompiler, true, sender);
+                    void this.showPrompt(selectCompiler, true, sender);
                     action = "dismissed";
                 }
                 telemetry.logLanguageServerEvent('compilerNotification', { action });
             } else if (!isCommand && (compilerDefaults.compilerPath === undefined)) {
-                await this.showPrompt(selectCompiler, false, sender);
+                return this.showPrompt(selectCompiler, false, sender);
             } else {
-                await this.handleIntelliSenseConfigurationQuickPick(isCommand, sender, true);
+                return this.handleIntelliSenseConfigurationQuickPick(isCommand, sender, true);
             }
         }
     }
