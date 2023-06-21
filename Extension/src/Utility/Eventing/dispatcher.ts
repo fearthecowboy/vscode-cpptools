@@ -17,7 +17,6 @@ import { collectGarbage } from '../System/garbage-collector';
 import { is } from '../System/guards';
 import { isAnonymousObject, members, typeOf } from '../System/info';
 import { getOrAdd } from '../System/map';
-import { debug, error, internal } from './channels';
 import { Descriptors } from './descriptor';
 import { parse } from './eventParser';
 import { ArbitraryObject, Callback, Continue, EventData, EventStatus, Subscriber, Subscription, Unsubscribe } from './interfaces';
@@ -72,7 +71,7 @@ async function dispatch<TResult>(event: Event<any, TResult>): Promise<void> {
             // call the callback, collate the result.
             let r = callback(event as EventData, ...captures);
             r = is.promise(r) ? await r.catch(e => {
-                error(e);
+                console.error(e);
                 return undefined;
             }) : r;
 
@@ -86,7 +85,7 @@ async function dispatch<TResult>(event: Event<any, TResult>): Promise<void> {
                 }
             }
         } catch (e: any) {
-            error(e);
+            console.error(e);
             // if the handler throws, it isn't a reason to cancel the event
         } finally {
             // clear the callback from the current set
@@ -105,7 +104,7 @@ async function dispatch<TResult>(event: Event<any, TResult>): Promise<void> {
             // we don't care about the result, and we don't want to block
             // (if the handler throws, too bad)
             try { void callback(event as EventData, ...captures); } catch (e: any) {
-                error(e);
+                console.error(e);
                 /* ignore */
             }
         }
@@ -127,7 +126,7 @@ async function dispatch<TResult>(event: Event<any, TResult>): Promise<void> {
             results.push(is.promise(r) ? r.catch(returns.undefined).finally(() => current.delete(callback)) : r);
         } catch (e: any) {
             // if the handler throws, not our problem.
-            error(e);
+            console.error(e);
         } finally {
             // we should remove it from the current set
             current.delete(callback);
@@ -196,7 +195,7 @@ export function removeAllListeners(eventSrc: ArbitraryObject) {
         // call unsubscribe
         const all = wm.get(eventSrc);
         if (all) {
-            debug(`Unsubscribing all from ${typeOf(eventSrc)}`);
+            console.debug(`Unsubscribing all from ${typeOf(eventSrc)}`);
             for (const unsubscribe of all) {
                 unsubscribe();
             }
@@ -219,7 +218,7 @@ export function on<T>(triggerExpression: string, callback: Callback<T>, eventSrc
         }
         // this is not always an error (as an emitter may not know about all the events it emits in advance)
         // but I like to know if it's happening so I can fix it if I can.
-        internal(`Handler with ${filterNames} [${triggerExpression}] has no events in ${typeOf(eventSrc)}`);
+        console.debug(`Handler with ${filterNames} [${triggerExpression}] has no events in ${typeOf(eventSrc)}`);
     }
     const subscriber = {
         filters,
@@ -320,7 +319,7 @@ export function subscribe<T extends Record<string, any>>(subscriber: Promise<Sub
                         const fn = await sandbox.createFunction(code, ['event'], { filename, transpile: true });
                         if (hasErrors(fn)) {
                             for (const each of fn) {
-                                error(each);
+                                console.error(each);
                             }
                             throw new Error(`Error loading ${filename}: ${fn}`);
                         }
@@ -332,13 +331,13 @@ export function subscribe<T extends Record<string, any>>(subscriber: Promise<Sub
                     const fn = await sandbox.createFunction(text, ['event'], { filename: `launch.json/${name}`, transpile: true });
                     if (hasErrors(fn)) {
                         for (const each of fn) {
-                            error(each);
+                            console.error(each);
                         }
                         throw new Error(`Error loading ${name}: ${fn}`);
                     }
                     unsubs.push(on(options.once ? `once ${name}` : name, fn as Callback, options.eventSource));
                 } catch (e: any) {
-                    error(e);
+                    console.error(e);
                     // if that fails
                     continue;
                 }

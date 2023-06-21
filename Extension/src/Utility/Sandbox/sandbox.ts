@@ -4,7 +4,6 @@
  * ------------------------------------------------------------------------------------------ */
 
 import { Context, createContext, runInContext, Script } from 'vm';
-import { debug, error, info, verbose, warning } from '../Eventing/channels';
 import { stringify } from '../System/json';
 import { CreateOptions, ScriptError } from './interfaces';
 
@@ -50,12 +49,12 @@ export class Sandbox {
             exports: {},
             ...initializeContext,
             console: {
-                log: (...args: any[]) => args.forEach(each => info(each)),
-                error: (...args: any[]) => args.forEach(each => error(each)),
-                debug: (...args: any[]) => args.forEach(each => debug(each)),
-                info: (...args: any[]) => args.forEach(each => info(each)),
-                warning: (...args: any[]) => args.forEach(each => warning(each)),
-                verbose: (...args: any[]) => args.forEach(each => verbose(each))
+                log: (...args: any[]) => args.forEach(each => console.log(each)),
+                error: (...args: any[]) => args.forEach(each => console.error(each)),
+                debug: (...args: any[]) => args.forEach(each => console.debug(each)),
+                info: (...args: any[]) => args.forEach(each => console.log(each)),
+                warning: (...args: any[]) => args.forEach(each => console.warn(each)),
+                verbose: (...args: any[]) => args.forEach(each => console.debug(each))
             },
             JSON: {
                 stringify: (obj: any) => stringify(obj),

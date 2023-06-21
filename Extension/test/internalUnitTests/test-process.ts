@@ -9,49 +9,51 @@ import { Descriptors } from '../../src/Utility/Eventing/descriptor';
 import { notifyNow } from '../../src/Utility/Eventing/dispatcher';
 import { EventData } from '../../src/Utility/Eventing/interfaces';
 import { Command, Program } from '../../src/Utility/Process/program';
+import { isWindows } from '../../src/constants';
 
 describe('Program Automation', () => {
-    it('can run a program', async () => {
+    if(isWindows) {
+        it('can run a program', async () => {
 
-        const echo = await new Program('c:/windows/system32/cmd.exe', '/c', 'echo');
-        const p = await echo('hello');
+            const echo = await new Program('c:/windows/system32/cmd.exe', '/c', 'echo');
+            const p = await echo('hello');
 
-        await p.exitCode;
+            await p.exitCode;
 
-        strictEqual(p.all()[0], 'hello', 'echo should echo the text we sent it');
+            strictEqual(p.all()[0], 'hello', 'echo should echo the text we sent it');
 
-        const echo2 = await new Program(echo, 'with', 'some', 'text');
-        const p2 = await echo2('there');
-        await p2.exitCode;
+            const echo2 = await new Program(echo, 'with', 'some', 'text');
+            const p2 = await echo2('there');
+            await p2.exitCode;
 
-        strictEqual(p2.all()[0], 'with some text there', 'echo should echo the text we sent it');
-    });
-
-    it('can do other stuff too', async () => {
-
-        let count = 0;
-
-        const echo = await new Program('c:/windows/system32/cmd.exe', '/c', 'echo', {
-            on: {
-                'this console/read': async (event: EventData<undefined>) => {
-                    if (event.text === 'sample-text') {
-                        count++;
-                    }
-                    notStrictEqual(event.text, 'should-not-see', 'should not have seen this text');
-                }
-            }
+            strictEqual(p2.all()[0], 'with some text there', 'echo should echo the text we sent it');
         });
 
-        const p = await echo('sample-text');
+        it('supports events on the console stream', async () => {
 
-        // send an arbitrary console event, this should not show up with 'this' set in the handler above.
-        notifyNow('read', new Descriptors(undefined, { console: '' }), 'should-not-see');
+            let count = 0;
 
-        await p.exitCode;
+            const echo = await new Program('c:/windows/system32/cmd.exe', '/c', 'echo', {
+                on: {
+                    'this console/read': async (event: EventData<undefined>) => {
+                        if (event.text === 'sample-text') {
+                            count++;
+                        }
+                        notStrictEqual(event.text, 'should-not-see', 'should not have seen this text');
+                    }
+                }
+            });
 
-        strictEqual(count, 1, 'should have seen the text we tried to echo');
-    });
+            const p = await echo('sample-text');
 
+            // send an arbitrary console event, this should not show up with 'this' set in the handler above.
+            notifyNow('read', new Descriptors(undefined, { console: '' }), 'should-not-see');
+
+            await p.exitCode;
+
+            strictEqual(count, 1, 'should have seen the text we tried to echo');
+        });
+    }
     it('runs a node command, filter the output', async () => {
 
         // create a command that runs node from this process

@@ -8,9 +8,9 @@ import { Sandbox } from '../Sandbox/sandbox';
 import { first } from '../System/array';
 import { smash } from '../Text/identifiers';
 import { Kind, Scanner, Token } from '../Text/scanner';
-import { internal } from './channels';
-
 import { ArbitraryObject, Filter } from './interfaces';
+
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 
 // ensure that array gets the first function, we need it for the discriminator
 // eslint-disable-next-line no-unused-expressions
@@ -116,6 +116,7 @@ export function parse(triggerExpression: string, sourceToBindTo: ArbitraryObject
         if (token.kind !== Kind.Slash) {
             throw new Error(`unexpected token ${JSON.stringify(token)}`);
         }
+    // eslint-disable-next-line no-constant-condition
     } while (true);
 
     // for each discriminator[filter]
@@ -124,7 +125,7 @@ export function parse(triggerExpression: string, sourceToBindTo: ArbitraryObject
     // the filter expression is a javascript expression. (special case: if a regex is a part of the expression, it's assumed to be applied against the text of the event data )
     // [/foo/g]
     if (sourceToBindTo !== source) {
-        internal(`source specified but 'this' not found in handler name or expression for '${triggerExpression}' `);
+        console.debug(`source specified but 'this' not found in handler name or expression for '${triggerExpression}' `);
     }
     return [isSync, once, filters, source];
 

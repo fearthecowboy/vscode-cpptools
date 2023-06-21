@@ -5,7 +5,6 @@
 
 import { Async } from '../../../src/Utility/Async/constructor';
 import { sleep } from '../../../src/Utility/Async/sleep';
-import { debug } from '../../../src/Utility/Eventing/channels';
 
 /* eslint-disable @typescript-eslint/naming-convention */
 export const Something = Async(class Something {
@@ -28,7 +27,7 @@ export const Something = Async(class Something {
     }
 
     comment() {
-        debug(`Has this been initialized: ${this.hasBeenInitialized}`);
+        console.debug(`Has this been initialized: ${this.hasBeenInitialized}`);
     }
 });
 

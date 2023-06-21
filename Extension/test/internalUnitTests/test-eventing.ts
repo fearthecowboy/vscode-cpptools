@@ -9,7 +9,6 @@ import { ok, strictEqual } from 'assert';
 import { beforeEach, describe, it } from 'mocha';
 import { Async } from '../../src/Utility/Async/constructor';
 import { sleep } from '../../src/Utility/Async/sleep';
-import { debug, out } from '../../src/Utility/Eventing/channels';
 import { Descriptors } from '../../src/Utility/Eventing/descriptor';
 import { notify, notifyNow, on, reset, subscribe } from '../../src/Utility/Eventing/dispatcher';
 import { Emitter } from '../../src/Utility/Eventing/emitter';
@@ -31,16 +30,16 @@ class Something extends SomeBase {
     readonly bump = this.newEvent('bump');
 
     async init() {
-        debug('before initialize');
+        console.debug('before initialize');
         // tell them we are initializing
         if (is.cancelled(await this.initialize())) {
             // a handler has cancelled this event.  we should stop
-            debug('cancelled?');
+            console.debug('cancelled?');
             this.wasCancelled = true;
             return;
         }
         this.initWasSuccessful = true;
-        debug('after initialize');
+        console.debug('after initialize');
     }
     wasCancelled: boolean = false;
     initWasSuccessful: boolean = false;
@@ -49,7 +48,7 @@ class Something extends SomeBase {
     // event handler for the init event for this instance only
     async 'this initialize'() {
         this.initHandlerRan = true;
-        debug('init handler that is bound to the instance');
+        console.debug('init handler that is bound to the instance');
 
         return Cancelled;
     }
@@ -64,7 +63,7 @@ describe('Event Emitters', () => {
     beforeEach(() => {
         reset();
         // uncomment the following line to show debug messages in the console.
-        void on('debug', async (event: EventData) => { out(event.text); });
+        void on('debug', async (event: EventData) => { console.debug(event.text); });
     });
 
     it('try self-bound handlers', async () => {
@@ -86,7 +85,7 @@ describe('Event Emitters', () => {
 
         const subscriber = {
             'something/initialize': () => {
-                debug('in here !');
+                console.debug('in here !');
                 count++;
                 return Continue;
             }
@@ -114,13 +113,13 @@ describe('Event Emitters', () => {
         const subscriber = {
             // should only get called for events on the object it is bound to
             'this initialize': () => {
-                debug('`this init` called');
+                console.debug('`this init` called');
                 countThisInit++;
             },
 
             // should get called for all events named 'init'
             'initialize': () => {
-                debug('`init` called');
+                console.debug('`init` called');
                 countAnyInit++;
             }
         };
@@ -143,7 +142,7 @@ describe('Event Emitters', () => {
         const s2 = new Something();
 
         s1.on('initialize', () => {
-            debug('`this init` called');
+            console.debug('`this init` called');
             countThisInit++;
         });
 
@@ -161,11 +160,11 @@ describe('Event Emitters', () => {
         const subscriber = {
             // should only get called for events on the object it is bound to
             'this initialize': () => {
-                debug('`this init` called, cancelling');
+                console.debug('`this init` called, cancelling');
                 return Cancelled;
             },
             'this bump': () => {
-                debug(`bump called: ${++count}`);
+                console.debug(`bump called: ${++count}`);
             }
         };
 
@@ -200,7 +199,7 @@ describe('Event Emitters', () => {
         let worked = false;
         const subscriber = {
             'something/initialize': () => {
-                debug('responding to initialize event on something!');
+                console.debug('responding to initialize event on something!');
                 worked = true;
                 return Continue;
             }

@@ -12,6 +12,7 @@ import { filterToFolders, path, pathsFromVariable } from '../Utility/Filesystem/
 import { FastFinder, initRipGrep, ripGrep } from '../Utility/Filesystem/ripgrep';
 import { render } from '../Utility/Text/tagged-literal';
 import { getExtensionFilePath } from '../common';
+import { isWindows } from '../constants';
 import { loadCompilerDefinitions, resetCompilerDefinitions, runConditions } from './definition';
 import { DefinitionFile, Intellisense, IntellisenseConfiguration } from './interfaces';
 import { clone } from './object-merge';
@@ -260,7 +261,7 @@ let initialized = false;
  */
 export async function initialize() {
     if (!initialized) {
-        const rgPath = resolve((process as any).resourcesPath, `app/node_modules.asar.unpacked/@vscode/ripgrep/bin/rg${process.platform === 'win32' && '.exe'}`);
+        const rgPath = resolve((process as any).resourcesPath, `app/node_modules.asar.unpacked/@vscode/ripgrep/bin/rg${isWindows ? '.exe' : ''}`);
         const rg = await path.isExecutable(rgPath);
         if (!rg) {
             fail('ripgrep not found');

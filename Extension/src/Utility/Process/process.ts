@@ -10,7 +10,6 @@ import { ChildProcess, spawn } from 'child_process';
 import { basename, resolve } from 'path';
 import { Async } from '../Async/constructor';
 import { ManualPromise } from '../Async/manual-promise';
-import { debug } from '../Eventing/channels';
 
 import { Emitter } from '../Eventing/emitter';
 import { ArbitraryObject, Callback, Unsubscribe } from '../Eventing/interfaces';
@@ -99,10 +98,10 @@ export class Process extends Async(class Process extends ProcessEvents {
                     finalize(this.error);
                 }
 
-                debug(`Process '${this.name}' exiting with code ${code}.`);
+                console.debug(`Process '${this.name}' exiting with code ${code}.`);
 
                 this.exited(code || (signal as any));
-                debug(`Called Exited for '${this.name}'`);
+                console.debug(`Called Exited for '${this.name}'`);
             });
 
         this.console = new ReadWriteLineStream(process.stdout, process.stdin);
@@ -137,7 +136,7 @@ export class Process extends Async(class Process extends ProcessEvents {
     }
 
     close() {
-        debug(`closing process ${this.name}`);
+        console.debug(`closing process ${this.name}`);
         this.#process.kill('SIGTERM');
     }
 }) { }

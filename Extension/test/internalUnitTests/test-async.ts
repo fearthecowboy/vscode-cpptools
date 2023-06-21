@@ -10,7 +10,7 @@ import { sleep } from '../../src/Utility/Async/sleep';
 
 import { AnotherOne, AnotherThree, Something, SomethingElse } from './examples/someclass';
 
-describe('[automation] AsyncConstructor', () => {
+describe('AsyncConstructor', () => {
     it('Create an instance of an async class', async () => {
         const something = await new Something(100);
         ok(something.hasBeenInitialized, 'The class should have been initialized');

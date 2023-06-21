@@ -8,10 +8,11 @@ import { TextDecoder, TextEncoder } from 'util';
 import { ManualPromise } from '../Async/manual-promise';
 import { returns } from '../Async/returns';
 import { Signal } from '../Async/signal';
-import { internal } from '../Eventing/channels';
 import { EventStatus } from '../Eventing/interfaces';
 import { finalize } from '../System/finalize';
 import { is } from '../System/guards';
+
+/* eslint-disable no-constant-condition */
 
 /**
  * An iterator/iterable wrapper to process a stream of  lines.
@@ -444,7 +445,7 @@ export class ReadWriteLineStream extends ReadableLineStream {
         this.writeable.on('error', (_error) => {
             /*
             if ((global as any).DEVMODE && error) {
-              internal(`write-stream - error - ${error.message}`);
+              console.debug(`write-stream - error - ${error.message}`);
             }
             */
         });
@@ -513,14 +514,14 @@ export class ReadWriteLineStream extends ReadableLineStream {
                 if (!this.writeable.destroyed) {
                     this.writeable.write(this.#encoder.encode(content.join('\n') + '\n'), (error: Error | null | undefined) => {
                         if ((global as any).DEVMODE && error) {
-                            internal(`stream-closed - ${error.message}`);
+                            console.debug(`stream-closed - ${error.message}`);
                             // reject(error);
                         }
                     });
                 }
             } catch (e: any) {
                 if ((global as any).DEVMODE) {
-                    internal(`stream-throws - ${e.message}`);
+                    console.debug(`stream-throws - ${e.message}`);
                     // reject(error);
                 }
             } finally {
