@@ -5,6 +5,8 @@
 
 import { CharacterCodes, isBinaryDigit, isDigit, isHexDigit, isIdentifierPart, isIdentifierStart, isLineBreak, isWhiteSpaceSingleLine, sizeOf } from './character-codes';
 
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
+
 export enum MessageCategory {
     Warning,
     Error,
