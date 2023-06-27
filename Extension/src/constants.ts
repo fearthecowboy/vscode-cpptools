@@ -4,5 +4,9 @@
  * ------------------------------------------------------------------------------------------ */
 
 import { platform } from 'os';
+
 export const isWindows = platform() === 'win32';
+
+// if you want to see the output of verbose logging, set this to true.
+export const isVerbose = false;
 

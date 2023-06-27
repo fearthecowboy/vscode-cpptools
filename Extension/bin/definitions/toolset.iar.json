@@ -13,7 +13,7 @@
     }
   },
   "intellisense": {
-    "compiler": "gcc", // this just gets us the 'base' that EDG will think it is
+    "compiler": "iar", // this just gets us the 'base' that EDG will think it is
     "architecture": "arm", // we can have a common file that remaps this to something else if needed
     "bits": 32, // another hint for later.
     "platform": "none", // bare-metal target. (can be remaped to windows/macos/linux if needed to make EDG happy)

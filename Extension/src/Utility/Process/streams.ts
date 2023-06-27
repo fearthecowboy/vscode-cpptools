@@ -11,11 +11,12 @@ import { Signal } from '../Async/signal';
 import { EventStatus } from '../Eventing/interfaces';
 import { finalize } from '../System/finalize';
 import { is } from '../System/guards';
+import { verbose } from '../Text/streams';
 
 /* eslint-disable no-constant-condition */
 
 /**
- * An iterator/iterable wrapper to process a stream of  lines.
+ * An iterator/iterable wrapper to process a stream of lines.
  */
 export class LineIterator implements AsyncIterable<string>, AsyncIterator<string> {
     #current = 0;
@@ -445,7 +446,7 @@ export class ReadWriteLineStream extends ReadableLineStream {
         this.writeable.on('error', (_error) => {
             /*
             if ((global as any).DEVMODE && error) {
-              console.debug(`write-stream - error - ${error.message}`);
+              verbose(`write-stream - error - ${error.message}`);
             }
             */
         });
@@ -514,14 +515,14 @@ export class ReadWriteLineStream extends ReadableLineStream {
                 if (!this.writeable.destroyed) {
                     this.writeable.write(this.#encoder.encode(content.join('\n') + '\n'), (error: Error | null | undefined) => {
                         if ((global as any).DEVMODE && error) {
-                            console.debug(`stream-closed - ${error.message}`);
+                            verbose(`stream-closed - ${error.message}`);
                             // reject(error);
                         }
                     });
                 }
             } catch (e: any) {
                 if ((global as any).DEVMODE) {
-                    console.debug(`stream-throws - ${e.message}`);
+                    verbose(`stream-throws - ${e.message}`);
                     // reject(error);
                 }
             } finally {

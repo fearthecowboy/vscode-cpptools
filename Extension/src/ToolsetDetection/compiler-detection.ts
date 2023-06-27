@@ -8,10 +8,12 @@ import * as os from 'os';
 import { homedir } from 'os';
 import { basename, delimiter, resolve, sep } from 'path';
 import { accumulator } from '../Utility/Async/awaiters';
+import { then } from '../Utility/Async/sleep';
 import { filterToFolders, path, pathsFromVariable } from '../Utility/Filesystem/path';
 import { FastFinder, initRipGrep, ripGrep } from '../Utility/Filesystem/ripgrep';
+import { is } from '../Utility/System/guards';
+import { verbose } from '../Utility/Text/streams';
 import { render } from '../Utility/Text/tagged-literal';
-import { getExtensionFilePath } from '../common';
 import { isWindows } from '../constants';
 import { loadCompilerDefinitions, resetCompilerDefinitions, runConditions } from './definition';
 import { DefinitionFile, Intellisense, IntellisenseConfiguration } from './interfaces';
@@ -19,13 +21,10 @@ import { clone } from './object-merge';
 import { getActions, strings } from './strings';
 import { Toolset } from './toolset';
 
-function normalizePath(path: string) {
-    return path.replace(/\\/g, '/');
-}
-
-function nativePath(path: string) {
-    return resolve(path);
-}
+const discoveredToolsets = new Map<string, Toolset>();
+let initialized = false;
+const inProgressCache = new Map<DefinitionFile, Promise<void>>();
+const configurationFolders = new Set<string>();
 
 function createResolver(definition: DefinitionFile, compilerPath: string) {
     return (prefix: string, expression: string) => {
@@ -114,11 +113,9 @@ async function searchInsideBinary(compilerPath: string, rx: string) {
     return undefined;
 }
 
-const discoveredToolsets = new Map<string, Toolset>();
-
 async function discover(compilerPath: string, definition: DefinitionFile): Promise<Toolset | undefined> {
     // normalize the path separators to be forward slashes.
-    compilerPath = normalizePath(compilerPath);
+    compilerPath = resolve(compilerPath);
 
     let toolset = discoveredToolsets.get(compilerPath);
     if (toolset) {
@@ -133,7 +130,7 @@ async function discover(compilerPath: string, definition: DefinitionFile): Promi
     const resolver = createResolver(definition, compilerPath);
 
     // create toolset object for the result.
-    toolset = new Toolset(nativePath(compilerPath), definition, resolver);
+    toolset = new Toolset(compilerPath, definition, resolver);
 
     const intellisense = definition.intellisense as Intellisense;
 
@@ -253,15 +250,14 @@ async function discover(compilerPath: string, definition: DefinitionFile): Promi
     return toolset;
 }
 
-let initialized = false;
 /**
- * This will search for toolsets based on the built-in definitions
+ * This will search for toolsets based on the definitions
  * Calling this forces a reset of the compiler definitions and discovered toolsets -- ideally this shouldn't need to be called
  * more than the initial time
  */
-export async function initialize() {
+export async function initialize(configFolders: string[], rgPath?: string, forceReset = true) {
     if (!initialized) {
-        const rgPath = resolve((process as any).resourcesPath, `app/node_modules.asar.unpacked/@vscode/ripgrep/bin/rg${isWindows ? '.exe' : ''}`);
+        rgPath = rgPath || resolve((process as any).resourcesPath, `app/node_modules.asar.unpacked/@vscode/ripgrep/bin/rg${isWindows ? '.exe' : ''}`);
         const rg = await path.isExecutable(rgPath);
         if (!rg) {
             fail('ripgrep not found');
@@ -270,18 +266,21 @@ export async function initialize() {
         initialized = true;
     }
 
-    // if initialize is called more than once, we need to reset the compiler definitions and list of discovered toolsets
-    resetCompilerDefinitions();
-    discoveredToolsets.clear();
-
-    console.log('Detecting toolsets based for built-in definitions');
-    const root = getExtensionFilePath("bin/definitions");
-
-    for await (const toolset of detectToolsets([root])) {
-        console.log(`Detected Compiler ${toolset.definition.name}/${toolset.version}/TARGET:${toolset.default.architecture}/HOST:${toolset.default.hostArchitecture}/BITS:${toolset.default.bits}/${toolset.compilerPath}`);
+    if(forceReset) {
+        // if initialize is called more than once, we need to reset the compiler definitions and list of discovered toolsets
+        // (forceReset should only be used with tests)
+        resetCompilerDefinitions();
+        discoveredToolsets.clear();
+        inProgressCache.clear();
     }
 
-    return discoveredToolsets;
+    // add the configuration folders to the list of folders to scan
+    configFolders.forEach(each => configurationFolders.add(each));
+
+    if(forceReset) {
+        // start searching now in the background if we've just reset everything
+        void getToolsets();
+    }
 }
 
 /**
@@ -289,9 +288,8 @@ export async function initialize() {
  *
  * Previously discovered toolsets are cached and returned from this. (so, no perf hit for calling this multiple times)
  *
- * @param configurationFolders The folders to scan for compiler definitions
  */
-export async function* detectToolsets(configurationFolders: string[]): AsyncIterable<Toolset> {
+export async function* detectToolsets(): AsyncIterable<Toolset> {
     const results = accumulator<Toolset>();
     for await (const definition of loadCompilerDefinitions(configurationFolders)) {
         results.add(searchForToolsets(definition));
@@ -300,13 +298,55 @@ export async function* detectToolsets(configurationFolders: string[]): AsyncIter
     yield* results;
 }
 
+/** Returns the discovered toolsets all at once
+ *
+ * If the discovery has been done before, it will just return the cached results.
+ * If it hasn't, it will run the discovery process and then return all the results.
+ *
+ * To reset the cache, call initialize() before calling this.
+ */
+export async function getToolsets() {
+    if (!initialized) {
+        throw new Error('Compiler detection has not been initialized. Call initialize() before calling this.');
+    }
+
+    // this exponentially/asychnronously searches for toolsets using the configuration folders
+    for await (const definition of loadCompilerDefinitions(configurationFolders)) {
+        // have we started searching with this definition yet?
+        const searching = inProgressCache.get(definition);
+
+        // yeah, we're already searching, so skip this one
+        if(is.promise(searching)) {
+            continue;
+        }
+
+        // nope, we haven't started searching yet, so start it now
+        inProgressCache.set(definition,then(async ()=> {
+            for await (const toolset of searchForToolsets(definition)) {
+                if(toolset) {
+                    verbose(`Detected Compiler ${toolset.definition.name}/${toolset.version}/TARGET:${toolset.default.architecture}/HOST:${toolset.default.hostArchitecture}/BITS:${toolset.default.bits}/${toolset.compilerPath}`);
+                }
+            }
+        }));
+    }
+
+    // wait for the inProgress searches to complete
+    await Promise.all(inProgressCache.values());
+
+    // return the results
+    return discoveredToolsets;
+}
+
 /**
  * Given a path to a binary, identify the compiler
  * @param candidate the path to the binary to identify
- * @param configurationFolders The folders to scan for compiler definitions
  * @returns a Toolset or undefined.
  */
-export async function identifyToolset(candidate: string, configurationFolders: string[]): Promise<Toolset | undefined> {
+export async function identifyToolset(candidate: string): Promise<Toolset | undefined> {
+    if (!initialized) {
+        throw new Error('Compiler detection has not been initialized. Call initialize() before calling this.');
+    }
+
     const fileInfo = await path.info(candidate);
     for await (const definition of loadCompilerDefinitions(configurationFolders)) {
         const resolver = createResolver(definition, '');

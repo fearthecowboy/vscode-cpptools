@@ -7,7 +7,7 @@
 
 import { strict } from 'assert';
 import { accumulator } from '../Async/awaiters';
-import { returns } from '../Async/returns';
+import { logAndReturn } from '../Async/returns';
 import { Process } from '../Process/process';
 import { ProcessFunction, Program } from '../Process/program';
 import { Instance } from '../System/types';
@@ -81,7 +81,7 @@ export class FastFinder implements AsyncIterable<string> {
                         this.#files.add(line);
                     }
                 }
-            }).catch(returns.undefined).finally(() => {
+            }).catch(logAndReturn.undefined).finally(() => {
                 this.pending--;
                 if (this.readyToComplete && this.pending === 0) {
                     this.#files.complete();
@@ -114,6 +114,7 @@ function isMatch(obj: Record<string, any>): obj is RipGrepMatch {
     return obj.type === 'match' && obj.data.path && obj.data.lines;
 }
 
+/** Calls RipGrep looking for strings */
 export async function* ripGrep(target: string, regex: string, options?: { glob?: string; binary?: boolean; encoding?: 'utf-16' | 'utf-8'; ignoreCase?: boolean }): AsyncGenerator<MatchData> {
     strict(ripgrep, 'initRipGrep must be called before using ripGrep');
 

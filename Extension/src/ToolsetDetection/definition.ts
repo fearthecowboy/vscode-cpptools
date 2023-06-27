@@ -10,6 +10,7 @@ import { parse as parseJson } from 'comment-json';
 import { readFile } from 'fs/promises';
 import { dirname, resolve } from 'path';
 import { accumulator } from '../Utility/Async/awaiters';
+import { AsyncMap } from '../Utility/Async/map';
 import { FastFinder } from '../Utility/Filesystem/ripgrep';
 import { is } from '../Utility/System/guards';
 import { evaluateExpression } from '../Utility/Text/tagged-literal';
@@ -40,7 +41,7 @@ function transform(obj: any): any {
     return obj;
 }
 
-export function parse(text: string) {
+function parse(text: string) {
     try {
         return transform(parseJson(text));
     } catch (e: any) {
@@ -52,15 +53,17 @@ export function parse(text: string) {
 }
 
 function isToolsetDefinition(definition: any): definition is DefinitionFile {
+    // stub for now - we can add a schema validator once we're sure the schema is stable
     return true;
 }
 
 function isPartialToolsetDefinition(definition: any): definition is DefinitionFile {
+    // stub for now - we can add a schema validator once we're sure the schema is stable
     return true;
 }
 
-const compilerDefintions = new Map<string, DefinitionFile>();
-const partialDefinitions = new Map<string, PartialDefinitionFile>();
+const compilerDefintions = new AsyncMap<string, DefinitionFile>();
+const partialDefinitions = new AsyncMap<string, PartialDefinitionFile>();
 
 export function formatIntellisenseBlock<T extends DeepPartial<IntellisenseConfiguration> | DeepPartial<Intellisense>>(intellisense?: T): T {
     if (!intellisense) {
@@ -125,71 +128,69 @@ function formatDefinitionBlock(definition: DefinitionFile) {
 }
 
 async function loadDefinition(definitionFile: string): Promise<DefinitionFile | undefined> {
-    const def = compilerDefintions.get(definitionFile);
-    if (def) {
-        return def;
-    }
-
-    try {
-        const definition = parse(await readFile(definitionFile, 'utf8'));
-        if (!isToolsetDefinition(definition)) {
-            console.error(`The definition file ${definitionFile} is not a valid toolset definition.`);
-            return;
-        }
-        formatDefinitionBlock(definition);
-        if (definition.import) {
-            const files = strings(definition.import);
-            for (const file of files) {
+    return compilerDefintions.getOrAdd(definitionFile, async () => {
+        try {
+            const definition = parse(await readFile(definitionFile, 'utf8'));
+            if (!isToolsetDefinition(definition)) {
+                console.error(`The definition file ${definitionFile} is not a valid toolset definition.`);
+                return;
+            }
+            formatDefinitionBlock(definition);
+            if (definition.import) {
+                const files = strings(definition.import);
+                for (const file of files) {
                 // there should be a partial definition file that matches this expression
-                const partialFile = resolve(dirname(definitionFile), file);
-                await loadPartialDefinition(partialFile);
+                    const partialFile = resolve(dirname(definitionFile), file);
+                    await loadPartialDefinition(partialFile);
 
-                if (partialDefinitions.has(partialFile)) {
-                    const partial = partialDefinitions.get(partialFile)!;
-                    if (!isPartialToolsetDefinition(partial)) {
-                        continue;
+                    if (partialDefinitions.has(partialFile)) {
+                        const partial = partialDefinitions.get(partialFile)!;
+                        if (!isPartialToolsetDefinition(partial)) {
+                            continue;
+                        }
+                        mergeObjects(definition, partial);
+                        formatDefinitionBlock(definition);
                     }
-                    mergeObjects(definition, partial);
-                    formatDefinitionBlock(definition);
                 }
             }
-        }
 
-        if (definition.conditions) {
+            if (definition.conditions) {
             // eslint-disable-next-line prefer-const
-            for (let [expression, part] of Object.entries(definition.conditions)) {
-                if (is.string(part) || is.array(part)) {
-                    const files = strings(part);
-                    part = {};
-                    for (const file of files) {
+                for (let [expression, part] of Object.entries(definition.conditions)) {
+                    if (is.string(part) || is.array(part)) {
+                        const files = strings(part);
+                        part = {};
+                        for (const file of files) {
                         // there should be a partial definition file that matches this expression
-                        const partialFile = resolve(dirname(definitionFile), file);
-                        await loadPartialDefinition(partialFile);
+                            const partialFile = resolve(dirname(definitionFile), file);
+                            await loadPartialDefinition(partialFile);
 
-                        if (partialDefinitions.has(partialFile)) {
-                            const partial = partialDefinitions.get(partialFile)!;
-                            if (!isPartialToolsetDefinition(partial)) {
-                                continue;
+                            if (partialDefinitions.has(partialFile)) {
+                                const partial = partialDefinitions.get(partialFile)!;
+                                if (!isPartialToolsetDefinition(partial)) {
+                                    continue;
+                                }
+                                mergeObjects(part, partial);
+                                formatDefinitionBlock(definition);
                             }
-                            mergeObjects(part, partial);
-                            formatDefinitionBlock(definition);
                         }
                     }
-                }
-                if (isPartialToolsetDefinition(part)) {
+                    if (isPartialToolsetDefinition(part)) {
                     // replace the location with the contents
-                    definition.conditions[expression] = part;
+                        definition.conditions[expression] = part;
+                    }
                 }
             }
+            compilerDefintions.set(definitionFile, definition);
+            return definition;
+        } catch (e: any) {
+            if (e.message) {
+                console.warn(`Error loading compiler definition file: ${definitionFile} - ${e.message}`);
+            }
         }
-        compilerDefintions.set(definitionFile, definition);
-        return definition;
-    } catch (e: any) {
-        if (e.message) {
-            console.warn(`Error loading compiler definition file: ${definitionFile} - ${e.message}`);
-        }
-    }
-    return undefined;
+        compilerDefintions.delete(definitionFile);
+        return undefined;
+    });
 }
 
 async function loadPartialDefinition(definitionFile: string) {
@@ -226,7 +227,7 @@ export function resetCompilerDefinitions() {
     partialDefinitions.clear();
 }
 
-export async function* loadCompilerDefinitions(configurationFolders: Array<string>): AsyncIterable<DefinitionFile> {
+export async function* loadCompilerDefinitions(configurationFolders: Set<string>): AsyncIterable<DefinitionFile> {
     // find all the definition files in the specified configuration folders.
     const result = accumulator<DefinitionFile>();
     const finder = new FastFinder(['toolset.*.json']).scan(...configurationFolders);

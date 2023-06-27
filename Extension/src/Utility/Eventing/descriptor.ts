@@ -11,6 +11,7 @@ import { ArbitraryObject } from './interfaces';
 
 const ignore = new Set(['Object', 'Emitter']);
 
+/** A set of descriptors for describing the context of an Event Emitter */
 export class Descriptors extends Map<string, Set<string>> {
     static none = new Descriptors();
 

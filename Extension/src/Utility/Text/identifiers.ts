@@ -5,6 +5,7 @@
 
 import { is } from '../System/guards';
 
+/** takes an identifier string and desconstructs and normalizes it. */
 export function deconstruct(identifier: string | string[]): string[] {
     if (is.array(identifier)) {
         return identifier.flatMap(deconstruct);
@@ -16,23 +17,29 @@ export function deconstruct(identifier: string | string[]): string[] {
         .split(/[\W|_]+/)
         .map((each) => each.toLowerCase());
 }
-
+/** takes an identifier string and desconstructs and normalizes it and smashes it together.
+ *
+ *  This is useful for supporting multiple naming conventions for the same identifier. (ie, 'fooBar' and 'foo-bar' are the same identifier)
+ */
 export function smash(identifier: string | string[]): string {
     return deconstruct(identifier).join('');
 }
 
+/** reformat an identifier to pascalCase */
 export function pascalCase(identifier: string | string[]): string {
     return deconstruct(identifier)
         .map((each) => each.charAt(0).toUpperCase() + each.slice(1))
         .join('');
 }
 
+/** reformat an identifier to camelCase */
 export function camelCase(identifier: string | string[]): string {
     return deconstruct(identifier)
         .map((each, index) => (index === 0 ? each : each.charAt(0).toUpperCase() + each.slice(1)))
         .join('');
 }
 
+/** reformat an identifier to dash case  */
 export function dashCase(identifier: string | string[]): string {
     return deconstruct(identifier).join('-');
 }

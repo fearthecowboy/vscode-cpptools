@@ -16,6 +16,7 @@ import { ArbitraryObject, Callback, Unsubscribe } from '../Eventing/interfaces';
 import { events, notifications } from '../Eventing/names';
 import { finalize } from '../System/finalize';
 import { Primitive } from '../System/types';
+import { verbose } from '../Text/streams';
 import { ReadWriteLineStream, ReadableLineStream } from './streams';
 
 export interface _Process extends Emitter {
@@ -49,8 +50,6 @@ export class Process extends Async(class Process extends ProcessEvents {
 
     readonly console: ReadWriteLineStream;
     readonly error: ReadableLineStream;
-
-    time: string = new Date().toString().replace(/\s|GMT.*/gi, '-').replace('--', '');
 
     get active() {
         return !this.exitCode.isCompleted;
@@ -98,10 +97,9 @@ export class Process extends Async(class Process extends ProcessEvents {
                     finalize(this.error);
                 }
 
-                console.debug(`Process '${this.name}' exiting with code ${code}.`);
+                verbose(`Process '${this.name}' exiting with code ${code}.`);
 
                 this.exited(code || (signal as any));
-                console.debug(`Called Exited for '${this.name}'`);
             });
 
         this.console = new ReadWriteLineStream(process.stdout, process.stdin);
@@ -136,7 +134,7 @@ export class Process extends Async(class Process extends ProcessEvents {
     }
 
     close() {
-        console.debug(`closing process ${this.name}`);
+        verbose(`closing process ${this.name}`);
         this.#process.kill('SIGTERM');
     }
 }) { }

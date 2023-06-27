@@ -201,6 +201,10 @@ interface TokenLocation extends Position {
     offset: number;
 }
 
+/** This is a fairly generic scanner for making it easy to parse expressions and code blocks in a variety of formats
+ *
+ * (the supported tokens is derrived from the TypeScript grammar)
+ */
 export class Scanner implements Token {
     #offset = 0;
     #line = 0;

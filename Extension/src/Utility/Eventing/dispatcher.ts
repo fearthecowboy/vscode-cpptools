@@ -17,6 +17,7 @@ import { collectGarbage } from '../System/garbage-collector';
 import { is } from '../System/guards';
 import { isAnonymousObject, members, typeOf } from '../System/info';
 import { getOrAdd } from '../System/map';
+import { verbose } from '../Text/streams';
 import { Descriptors } from './descriptor';
 import { parse } from './eventParser';
 import { ArbitraryObject, Callback, Continue, EventData, EventStatus, Subscriber, Subscription, Unsubscribe } from './interfaces';
@@ -184,8 +185,7 @@ function* getHandlers<TResult>(event: Event<any, TResult>, category: Map<string,
         yield [subscriber.handler, captures];
     }
 }
-const wm = new WeakMap<ArbitraryObject, (() => void)[]>();
-
+const boundSubscribers = new WeakMap<ArbitraryObject, (() => void)[]>();
 const autoUnsubscribe = new FinalizationRegistry((unsubscribe: () => void) => {
     unsubscribe();
 });
@@ -193,9 +193,9 @@ const autoUnsubscribe = new FinalizationRegistry((unsubscribe: () => void) => {
 export function removeAllListeners(eventSrc: ArbitraryObject) {
     if (eventSrc) {
         // call unsubscribe
-        const all = wm.get(eventSrc);
+        const all = boundSubscribers.get(eventSrc);
         if (all) {
-            console.debug(`Unsubscribing all from ${typeOf(eventSrc)}`);
+            verbose(`Unsubscribing all from ${typeOf(eventSrc)}`);
             for (const unsubscribe of all) {
                 unsubscribe();
             }
@@ -205,6 +205,7 @@ export function removeAllListeners(eventSrc: ArbitraryObject) {
     }
 }
 
+/** Subscribe to an event given a trigger expression */
 export function on<T>(triggerExpression: string, callback: Callback<T>, eventSrc?: ArbitraryObject): Unsubscribe {
     // parse the event expression into a chain of checks
     const [isSync, once, filters, eventSource] = parse(triggerExpression, eventSrc);
@@ -218,7 +219,7 @@ export function on<T>(triggerExpression: string, callback: Callback<T>, eventSrc
         }
         // this is not always an error (as an emitter may not know about all the events it emits in advance)
         // but I like to know if it's happening so I can fix it if I can.
-        console.debug(`Handler with ${filterNames} [${triggerExpression}] has no events in ${typeOf(eventSrc)}`);
+        verbose(`Handler with ${filterNames} [${triggerExpression}] has no events in ${typeOf(eventSrc)}`);
     }
     const subscriber = {
         filters,
@@ -256,7 +257,7 @@ export function on<T>(triggerExpression: string, callback: Callback<T>, eventSrc
     // setup auto unsubscribe when a bound object is garbage collected
     if (eventSource) {
         autoUnsubscribe.register(eventSource, unsubscribe);
-        getOrAdd(wm, eventSource, []).push(unsubscribe);
+        getOrAdd(boundSubscribers, eventSource, []).push(unsubscribe);
     }
 
     // set the callback into the handler object (with auto-unsubscribe if it is a 'once' handler)
@@ -265,6 +266,7 @@ export function on<T>(triggerExpression: string, callback: Callback<T>, eventSrc
     return unsubscribe;
 }
 
+/** Subscribe to an event given a trigger expression, only for a single time  */
 export function once<T>(triggerExpression: string, callback: Callback<T>, eventSrc?: ArbitraryObject): Unsubscribe {
     return on(`once ${triggerExpression}`, callback, eventSrc);
 }
@@ -274,29 +276,9 @@ export function subscribe(subscriber: string, options?: { folder?: string; bindA
 export function subscribe<T extends Record<string, any>>(subscriber: Promise<Subscription<T>>, options?: { bindAll?: boolean; eventSource?: ArbitraryObject }): Promise<Unsubscribe>;
 export function subscribe(subscriber: Record<string, string>, options?: { folder: string; bindAll?: boolean; eventSource?: ArbitraryObject }): Promise<Unsubscribe>;
 export function subscribe<T extends Record<string, any>>(subscriber: Subscription<T>, options?: { bindAll?: boolean; eventSource?: ArbitraryObject }): Unsubscribe;
-export function subscribe<T extends Record<string, any>>(subscriber: Promise<Subscription<T>> | string | Subscription<T> | Record<string, string>, options?: { folder?: string; bindAll?: boolean; eventSource?: ArbitraryObject; once?: boolean }): Unsubscribe | Promise<Unsubscribe> {
+export function subscribe<T extends Record<string, any>>(subscriber: Promise<Subscription<T>> | string | Subscription<T> | Record<string, string>, options: { folder?: string; bindAll?: boolean; eventSource?: ArbitraryObject; once?: boolean } = {}): Unsubscribe | Promise<Unsubscribe> {
     if (is.promise(subscriber)) {
         return subscriber.then((sub) => subscribe(sub, options));
-    }
-    options = options || {};
-
-    if (is.string(subscriber)) {
-        return path.isFile(subscriber, options.folder).then(async (filename) => {
-            throw new Error('Not Implemented at this time');
-            /*
-            // we've been passed a string as the first argument, so this is either a filename or raw source code of a whole module
-            // if it is a filename, then we need to load it
-            if (filename) {
-              // it is a file, so load it as a module
-              const code = await readFile(filename, 'utf8');
-              const mod = await sandbox.createModule(code,{filename: filename, transpile: true}) as Subscription;
-              return subscribe(mod, {...options, bindAll: true });
-            }
-            // it's not a file, so treat the whole instance as a module source
-            const mod = await sandbox.createModule(subscriber as string) as Subscription;
-            return subscribe(mod,{...options, bindAll: true });
-            */
-        });
     }
 
     const { properties, fields, methods } = members(subscriber);

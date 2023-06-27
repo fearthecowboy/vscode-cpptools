@@ -27,37 +27,6 @@ export async function foreach<T, TResult>(items: undefined | Iterable<T> | Promi
     return [];                                                 // return an empty array if there is nothing to iterate over
 }
 
-export async function* forEachAsync<T, TResult>(items: undefined | Iterable<T> | Promise<Iterable<T> | undefined> | Promise<undefined> | AsyncIterable<T> | Promise<AsyncIterable<T>>, predicate: (item: T) => Promise<TResult>): AsyncIterable<TResult> {
-    items = is.promise(items) ? await items : items;                      // unwrap the promise if it is one
-
-    if (items) {
-        if (is.asyncIterable(items)) {
-            for await (const item of items) {
-                yield predicate(item);                                            // run the predicate on each item
-            }
-        } else {
-            for (const item of items) {
-                yield predicate(item);                                            // run the predicate on each item
-            }
-        }
-    }
-}
-
-/** convenience function to do Promise.all on multiple items, and supports Iterable */
-export function all<T>(...items: (Promise<T> | Iterable<Promise<T>>)[]): Promise<T[]> {
-    const result = [];
-    for (const item of items) {
-        if (is.promise(item)) {
-            result.push(item);
-        } else {
-            for (const subItem of item) {
-                result.push(subItem);
-            }
-        }
-    }
-    return Promise.all(result);
-}
-
 interface Cursor<T> {
     identity: number;
     iterator: AsyncIterator<T>;
@@ -105,7 +74,6 @@ export type AsynchIterable<T> = AsyncIterable<T> & {
 };
 
 export function accumulator<T>(...iterables: Some<T>[]): AsynchIterable<T> {
-
     const iterators = new Map<number, Promise<Cursor<T>>>();
     let completeWhenEmpty = iterables.length > 0;   // if we are given any items, they we auto-complete when we run out (so an add after the last item is yielded will throw)
     const signal = new Signal<boolean>();
@@ -160,10 +128,6 @@ export function accumulator<T>(...iterables: Some<T>[]): AsynchIterable<T> {
     }
 }
 export type Some<T> = T | Promise<T> | AsyncIterable<T | undefined> | AsyncIterable<Promise<T> | Promise<undefined>> | Iterable<T> | Iterable<Promise<T>>;
-
-export function isSome<T>(item: Some<T>): item is Some<T> {
-    return item !== undefined;
-}
 
 export async function* asyncOf<T>(...items: (undefined | Promise<undefined> | Some<T>)[]): AsyncIterable<NonNullable<T>> {
     for (const item of items) {

@@ -33,40 +33,40 @@ export abstract class Emitter {
     }
 
     /** adds an event to the queue, to be dispatched when it is unqueued */
-    /* protected */ async emit(event: string, text: string): Promise<EventStatus>;
-    /* protected */ async emit(event: string, data: ArbitraryObject): Promise<EventStatus>;
-    /* protected */ async emit(event: string, text: string, data: ArbitraryObject): Promise<EventStatus>;
-    /* protected */ async emit(event: string, tOrD: any, data?: ArbitraryObject): Promise<EventStatus> {
+    protected async emit(event: string, text: string): Promise<EventStatus>;
+    protected async emit(event: string, data: ArbitraryObject): Promise<EventStatus>;
+    protected async emit(event: string, text: string, data: ArbitraryObject): Promise<EventStatus>;
+    protected async emit(event: string, tOrD: any, data?: ArbitraryObject): Promise<EventStatus> {
         return (data) ?
             emit(event, this.descriptors, this, tOrD, data) :
             emit(event, this.descriptors, this, tOrD);
     }
 
     /** immediately dispatches an event */
-    /* protected */ async emitNow(event: string, text: string): Promise<EventStatus>;
-    /* protected */ async emitNow(event: string, data: ArbitraryObject): Promise<EventStatus>;
-    /* protected */ async emitNow(event: string, text: string, data: ArbitraryObject): Promise<EventStatus>;
-    /* protected */ async emitNow(event: string, tOrD: any, data?: ArbitraryObject): Promise<EventStatus> {
+    protected async emitNow(event: string, text: string): Promise<EventStatus>;
+    protected async emitNow(event: string, data: ArbitraryObject): Promise<EventStatus>;
+    protected async emitNow(event: string, text: string, data: ArbitraryObject): Promise<EventStatus>;
+    protected async emitNow(event: string, tOrD: any, data?: ArbitraryObject): Promise<EventStatus> {
         return (data) ?
             emitNow(event, this.descriptors, this, tOrD, data) :
             emitNow(event, this.descriptors, this, tOrD);
     }
 
     /** adds a notification event to the queue, to be dispatched when it is unqueued */
-    /* protected */ notify(event: string, text: string): void;
-    /* protected */ notify(event: string, data: ArbitraryObject): void;
-    /* protected */ notify(event: string, text: string, data: ArbitraryObject): void;
-    /* protected */ notify(event: string, tOrD: any, data?: ArbitraryObject): void {
+    protected notify(event: string, text: string): void;
+    protected notify(event: string, data: ArbitraryObject): void;
+    protected notify(event: string, text: string, data: ArbitraryObject): void;
+    protected notify(event: string, tOrD: any, data?: ArbitraryObject): void {
         return (data) ?
             notify(event, this.descriptors, this, tOrD, data) :
             notify(event, this.descriptors, this, tOrD);
     }
 
     /** immediately dispatches a notification event */
-    /* protected */ notifyNow(event: string, text: string): void;
-    /* protected */ notifyNow(event: string, data: ArbitraryObject): void;
-    /* protected */ notifyNow(event: string, text: string, data: ArbitraryObject): void;
-    /* protected */ notifyNow(event: string, tOrD: any, data?: ArbitraryObject): void {
+    protected notifyNow(event: string, text: string): void;
+    protected notifyNow(event: string, data: ArbitraryObject): void;
+    protected notifyNow(event: string, text: string, data: ArbitraryObject): void;
+    protected notifyNow(event: string, tOrD: any, data?: ArbitraryObject): void {
         return (data) ?
             notifyNow(event, this.descriptors, this, tOrD, data) :
             notifyNow(event, this.descriptors, this, tOrD);
@@ -84,7 +84,7 @@ export abstract class Emitter {
    * @param eventName - the string name of the event
    * @param options - options for the event trigger
    */
-    /* protected */ newEvent(eventName: string, options?: EventOptions): () => Promise<void | EventStatus>;
+    protected newEvent(eventName: string, options?: EventOptions): () => Promise<void | EventStatus>;
 
     /**
    * Creates a named event function for triggering events in an {@link Emitter}
@@ -100,7 +100,7 @@ export abstract class Emitter {
    * @param eventName - the string name of the event
    * @param options - options for the event trigger (default: `{now: false}`)
    */
-    /* protected */ newEvent<TOutput>(eventName: string, options?: EventOptions): () => Promise<TOutput | EventStatus>;
+    protected newEvent<TOutput>(eventName: string, options?: EventOptions): () => Promise<TOutput | EventStatus>;
 
     /**
    * Creates a named event function for triggering events in an {@link Emitter}
@@ -117,7 +117,7 @@ export abstract class Emitter {
    * @param eventName - the string name of the event
    * @param options - options for the event trigger (default: `{now: false}`)
    */
-    /* protected */ newEvent<TData, TOutput>(eventName: string, options?: EventOptions): (input: TData) => Promise<TOutput | EventStatus>;
+    protected newEvent<TData, TOutput>(eventName: string, options?: EventOptions): (input: TData) => Promise<TOutput | EventStatus>;
 
     /**
    * Creates a named event function for triggering events in an {@link Emitter}
@@ -135,13 +135,11 @@ export abstract class Emitter {
    * @param eventName - the string name of the event
    * @param options - options for the event trigger (default: `{now: false}`)
    */
-    /* protected */ newEvent<TText extends string, TData, TOutput>(eventName: string, options?: EventOptions<TOutput>): (text: TText, data: TData) => Promise<TOutput>;
-
-    /* protected */ newEvent<TOutput>(eventName: string, options?: EventOptions & WithDefault<TOutput>): () => Promise<TOutput>;
-    /* protected */ newEvent<TData, TOutput>(eventName: string, options?: EventOptions & WithDefault<TOutput>): (input: TData) => Promise<TOutput>;
-    /* protected */ newEvent<TText extends string, TData, TOutput>(eventName: string, options?: EventOptions<TOutput> & WithDefault<TOutput>): (text: TText, data: TData) => Promise<TOutput>;
-
-    /* protected */ newEvent<TText extends string, TData, TOutput>(eventName: string, options?: EventOptions<TOutput> & WithDefault<TOutput>): (text: TText, data: TData) => Promise<EventStatus | TOutput> {
+    protected newEvent<TText extends string, TData, TOutput>(eventName: string, options?: EventOptions<TOutput>): (text: TText, data: TData) => Promise<TOutput>;
+    protected newEvent<TOutput>(eventName: string, options?: EventOptions & WithDefault<TOutput>): () => Promise<TOutput>;
+    protected newEvent<TData, TOutput>(eventName: string, options?: EventOptions & WithDefault<TOutput>): (input: TData) => Promise<TOutput>;
+    protected newEvent<TText extends string, TData, TOutput>(eventName: string, options?: EventOptions<TOutput> & WithDefault<TOutput>): (text: TText, data: TData) => Promise<TOutput>;
+    protected newEvent<TText extends string, TData, TOutput>(eventName: string, options?: EventOptions<TOutput> & WithDefault<TOutput>): (text: TText, data: TData) => Promise<EventStatus | TOutput> {
         eventName = smash(eventName);
         this.#knownEvents.add(eventName);
         const descriptors = options?.descriptors ? new Descriptors(this.descriptors, options.descriptors) : this.descriptors;
@@ -197,14 +195,14 @@ export abstract class Emitter {
     }
 
     /** notification with event name, but no data in the event. */
-    /* protected */ newNotification(eventName: string, options?: EventOptions): () => void;
+    protected newNotification(eventName: string, options?: EventOptions): () => void;
 
     /** notification with event name, and some data (of <TData>) */
-    /* protected */ newNotification<TData>(eventName: string, options?: EventOptions): (input: TData) => void;
+    protected newNotification<TData>(eventName: string, options?: EventOptions): (input: TData) => void;
 
     /** notification with an event name, an event string <TInput>, and some data<TData>  */
-    /* protected */ newNotification<TText extends string, TData>(eventName: string, options?: EventOptions): (text: TText, data: TData) => void;
-    /* protected */ newNotification<TText extends string, TData>(eventName: string, options?: EventOptions): (text: TText, data: TData) => void {
+    protected newNotification<TText extends string, TData>(eventName: string, options?: EventOptions): (text: TText, data: TData) => void;
+    protected newNotification<TText extends string, TData>(eventName: string, options?: EventOptions): (text: TText, data: TData) => void {
         eventName = smash(eventName);
         this.#knownEvents.add(eventName);
         const descriptors = options?.descriptors ? new Descriptors(this.descriptors, options.descriptors) : this.descriptors;

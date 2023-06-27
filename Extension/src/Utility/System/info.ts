@@ -5,11 +5,7 @@
 
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { is } from './guards';
-import { AribtraryObject, Constructor, Initializer } from './types';
-
-export function initialize<T>(initializer: Initializer<any>): T | Promise<T> {
-    return typeof initializer === 'function' ? is.Constructor(initializer) ? new initializer() : (initializer as () => T | Promise<T>)() : initializer;
-}
+import { AribtraryObject, Constructor } from './types';
 
 export function typeOf(instance: any) {
     const t = typeof instance;
@@ -66,7 +62,7 @@ export function classOf(instance: AribtraryObject | Constructor): Constructor | 
 }
 
 /** returns true if the instance is an anonymous object (as opposed to constructed via a class) */
-export function isAnonymousObject(instance: AribtraryObject): boolean {
+export function isAnonymousObject(instance: any): boolean {
     return instance.constructor.name === 'Object';
 }
 

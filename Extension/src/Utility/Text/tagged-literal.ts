@@ -5,16 +5,17 @@
 
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 
+import { safeEval } from '../Sandbox/sandbox';
 import { is } from '../System/guards';
 import { Primitive } from '../System/types';
-import { safeEval } from '../Sandbox/sandbox';
 import { isIdentifierPart, isIdentifierStart } from './character-codes';
 
+/** simple dynamic tagged literal implementation */
 export function taggedLiteral(templateString: string, templateVars: Record<string, any>): string {
     return safeEval(`\`${templateString.replace('\\', '\\\\').replace(/`/, '\`')}\`;`, templateVars) as string;
 }
 
-export function parseTaggedLiteral(templateString: string) {
+function parseTaggedLiteral(templateString: string) {
     // must parse the inside of javascript tagged literal format
     // and ensure that escape sequences like \n \t \r \$ are handled correctly
     const result = {

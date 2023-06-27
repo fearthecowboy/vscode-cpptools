@@ -3,7 +3,6 @@
  * See 'LICENSE' in the project root for license information.
  * ------------------------------------------------------------------------------------------ */
 
-import { resolve } from 'path';
 import { is } from '../Utility/System/guards';
 import { OneOrMore } from './interfaces';
 
@@ -18,14 +17,6 @@ export function strings(input: OneOrMore<string> | undefined | Set<string> | (st
         return [input];
     }
     return input as string[];
-}
-
-export function normalizePath(path: string) {
-    return path.replace(/\\/g, '/');
-}
-
-export function nativePath(path: string) {
-    return resolve(path);
 }
 
 export function getActions<T>(obj: any, actions: [string, string[]][]) {

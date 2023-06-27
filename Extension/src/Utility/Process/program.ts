@@ -5,7 +5,6 @@
 
 /* eslint-disable @typescript-eslint/naming-convention */
 import { fail } from 'assert';
-import { asserts } from '../System/assertions';
 import { Factory } from '../Async/factory';
 import { lazy } from '../Async/lazy';
 import { Descriptors } from '../Eventing/descriptor';
@@ -14,6 +13,7 @@ import { ArbitraryObject } from '../Eventing/interfaces';
 import { Finder } from '../Filesystem/find';
 import { filterToFolders, path, pathsFromVariable } from '../Filesystem/path';
 import { first } from '../System/array';
+import { asserts } from '../System/assertions';
 import { is } from '../System/guards';
 import { Primitive } from '../System/types';
 import { Process } from './process';
@@ -22,7 +22,7 @@ import { ReadableLineStream } from './streams';
 type ArrayPlusOptions<T, TOptions> = [...T[]] | [...T[], TOptions];
 
 function primitives(args: unknown[] | undefined): Primitive[] {
-    return args && args.length ? args.filter(is.primitive) as Primitive[] : [];
+    return args?.length ? args.filter(is.primitive) as Primitive[] : [];
 }
 
 export const searchPaths = lazy(() => filterToFolders(pathsFromVariable('PATH')));
@@ -31,13 +31,12 @@ interface ProgramOptions {
     cwd?: string;
     env?: NodeJS.ProcessEnv;
     noninteractive?: boolean;
-    // on?: string | Record<string, AribtraryFunction|string>;
     on?: ArbitraryObject;
     choices?: Promise<Set<string>>;
 }
 
 function options<T extends Record<string, any>>(args?: [...Primitive[]] | [...Primitive[], T]): Partial<T> {
-    return args && args.length ? is.primitive(args[args.length - 1]) ? {} : args.pop() as T : {};
+    return args?.length ? is.primitive(args[args.length - 1]) ? {} : args.pop() as T : {};
 }
 
 interface Launcher {

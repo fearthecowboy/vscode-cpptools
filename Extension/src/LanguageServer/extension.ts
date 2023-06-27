@@ -12,6 +12,7 @@ import { Readable } from 'stream';
 import * as vscode from 'vscode';
 import * as nls from 'vscode-nls';
 import * as yauzl from 'yauzl';
+import { initialize } from '../ToolsetDetection/compiler-detection';
 import { logAndReturn } from '../Utility/Async/returns';
 import * as util from '../common';
 import * as telemetry from '../telemetry';
@@ -187,6 +188,9 @@ export async function activate(): Promise<void> {
     ui.activeDocumentChanged(); // Handle already active documents (for non-cpp files that we don't register didOpen).
     disposables.push(vscode.window.onDidChangeTextEditorSelection(onDidChangeTextEditorSelection));
     disposables.push(vscode.window.onDidChangeVisibleTextEditors(onDidChangeVisibleTextEditors));
+
+    // initialize toolset detection
+    void initialize([util.getExtensionFilePath('bin/definitions')]);
 
     updateLanguageConfigurations();
 

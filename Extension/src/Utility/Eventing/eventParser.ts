@@ -8,6 +8,7 @@ import { Sandbox } from '../Sandbox/sandbox';
 import { first } from '../System/array';
 import { smash } from '../Text/identifiers';
 import { Kind, Scanner, Token } from '../Text/scanner';
+import { verbose } from '../Text/streams';
 import { ArbitraryObject, Filter } from './interfaces';
 
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
@@ -125,7 +126,7 @@ export function parse(triggerExpression: string, sourceToBindTo: ArbitraryObject
     // the filter expression is a javascript expression. (special case: if a regex is a part of the expression, it's assumed to be applied against the text of the event data )
     // [/foo/g]
     if (sourceToBindTo !== source) {
-        console.debug(`source specified but 'this' not found in handler name or expression for '${triggerExpression}' `);
+        verbose(`source specified but 'this' not found in handler name or expression for '${triggerExpression}' `);
     }
     return [isSync, once, filters, source];
 
