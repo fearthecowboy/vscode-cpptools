@@ -6,6 +6,7 @@
 import { ok, strictEqual, throws } from 'assert';
 import { describe } from 'mocha';
 import { setTimeout } from 'timers/promises';
+import { race } from '../../src/Utility/Async/awaiters';
 import { ManualPromise } from '../../src/Utility/Async/manual-promise';
 
 // force dev mode (which throws on duplicate resolve calls)
@@ -20,7 +21,7 @@ describe('Manual Promise', () => {
         ok(promise.isPending, "promise should be in the pending state.");
 
         // verify that the promise is still not resolved.
-        strictEqual(await Promise.race([promise, setTimeout(1, "timed-out")]), "timed-out", "promise should not have resolved yet.");
+        strictEqual(await race([promise, setTimeout(1, "timed-out")]), "timed-out", "promise should not have resolved yet.");
 
         // explicitly resolve the promise
         promise.resolve("promise-resolved");
@@ -29,7 +30,7 @@ describe('Manual Promise', () => {
         ok(promise.isResolved, "promise should be in the resolved state.");
 
         // await it
-        strictEqual(await Promise.race([promise, setTimeout(1, "timed-out")]), "promise-resolved", "promise should have resolved.");
+        strictEqual(await race([promise, setTimeout(1, "timed-out")]), "promise-resolved", "promise should have resolved.");
 
         // can't resolve it twice!
         throws(() => promise.resolve("promise-resolved-again"), "promise should not be able to resolve twice.");

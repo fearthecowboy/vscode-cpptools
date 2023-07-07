@@ -284,10 +284,8 @@ export async function initialize(configFolders: string[], rgPath?: string, force
 }
 
 /**
- * Scan for all compilers using the definitions (toolset.*.json) in the given folders
- *
- * Previously discovered toolsets are cached and returned from this. (so, no perf hit for calling this multiple times)
- *
+ * Async scan for all compilers using the definitions (toolset.*.json) in the given folders
+ * (iterate over this with `for await`)
  */
 export async function* detectToolsets(): AsyncIterable<Toolset> {
     const results = accumulator<Toolset>();
@@ -319,7 +317,7 @@ export async function getToolsets() {
         if(is.promise(searching)) {
             continue;
         }
-
+        console.log(`Searching for toolsets for ${definition.name}`);
         // nope, we haven't started searching yet, so start it now
         inProgressCache.set(definition,then(async ()=> {
             for await (const toolset of searchForToolsets(definition)) {
@@ -332,7 +330,7 @@ export async function getToolsets() {
 
     // wait for the inProgress searches to complete
     await Promise.all(inProgressCache.values());
-
+    console.log(`Done searching for toolsets (found ${inProgressCache.size})`);
     // return the results
     return discoveredToolsets;
 }

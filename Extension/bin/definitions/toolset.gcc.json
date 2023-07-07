@@ -1,5 +1,5 @@
 {
-  "name": "GNU C++ [x64]",
+  "name": "GNU C [x64]",
   "import": [
     "common/gcc.json",
     "common/defaults.json"

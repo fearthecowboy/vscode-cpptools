@@ -3,8 +3,8 @@
  * See 'LICENSE' in the project root for license information.
  * ------------------------------------------------------------------------------------------ */
 
-import { isVerbose } from '../../constants';
+import { verboseEnabled } from '../../constants';
 
 export function verbose(...args: any[]): void {
-    return isVerbose ? console.log(... args) : undefined;
+    return verboseEnabled ? console.log(... args) : undefined;
 }

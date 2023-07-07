@@ -9,10 +9,10 @@
 import { Dirent, constants } from 'fs';
 import { readdir, stat } from 'fs/promises';
 import { basename, extname, sep } from 'path';
+import { isWindows } from '../../constants';
 import { accumulator, foreach } from '../Async/awaiters';
 import { ManualPromise } from '../Async/manual-promise';
 import { returns } from '../Async/returns';
-import { isWindows } from '../../constants';
 import { is } from '../System/guards';
 import { File, Folder, normalize } from './path';
 

@@ -12,7 +12,7 @@ import { accumulator } from '../../src/Utility/Async/awaiters';
 // console.debug = (...args: any) => console.timeLog('default',args);
 
 describe('Async Iterators', () => {
-    it('Use the Combine() for async iterators (empty, manual close)', async () => {
+    it('Use the accumulator() for async iterators (empty, manual close)', async () => {
         const result = accumulator<string>();
         setTimeout(() => result.complete(), 5);
         for await (const _each of result) {
@@ -23,7 +23,7 @@ describe('Async Iterators', () => {
 
     });
 
-    it('Use the Combine() for async iterators (add some items)', async () => {
+    it('Use the accumulator() for async iterators (add some items)', async () => {
         let total = 0;
         let count = 0;
 

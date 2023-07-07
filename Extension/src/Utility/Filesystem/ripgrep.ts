@@ -6,6 +6,7 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 
 import { strict } from 'assert';
+import { existsSync } from 'fs';
 import { accumulator } from '../Async/awaiters';
 import { logAndReturn } from '../Async/returns';
 import { Process } from '../Process/process';
@@ -66,10 +67,13 @@ export class FastFinder implements AsyncIterable<string> {
             this.fileGlobs.map(glob => this.executableExtensions.map(ext => glob.includes('**') ? glob : `**/${glob}${ext}`)).flat() :
             this.fileGlobs.map(glob => glob.includes('**') ? glob : `**/${glob}`);
 
+        // only search locations that exist
+        location = location.filter(each => existsSync(each.toString()));
+
         // only search if there are globs and locations to search
         if (globs.length && location.length) {
             this.pending++;
-            void ripgrep!(...globs.map(each => ['--glob', each]).flat(), '--max-depth', depth, '--null-data', '--no-messages', '--files', ...location.map(each => each.toString())).then(async proc => {
+            void ripgrep!(...globs.map(each => ['--glob', each]).flat(), '--max-depth', depth, '--null-data', '--no-messages', '-L', '--files', ...location.map(each => each.toString())).then(async proc => {
                 const process = proc as unknown as Instance<Process>;
                 this.processes.push(process);
                 for await (const line of process.console) {

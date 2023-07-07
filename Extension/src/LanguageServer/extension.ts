@@ -12,7 +12,7 @@ import { Readable } from 'stream';
 import * as vscode from 'vscode';
 import * as nls from 'vscode-nls';
 import * as yauzl from 'yauzl';
-import { initialize } from '../ToolsetDetection/compiler-detection';
+import { initialize } from '../ToolsetDetection/detect-toolset';
 import { logAndReturn } from '../Utility/Async/returns';
 import * as util from '../common';
 import * as telemetry from '../telemetry';
@@ -201,7 +201,7 @@ export async function activate(): Promise<void> {
     void clients.ActiveClient.ready.then(() => intervalTimer = global.setInterval(onInterval, 2500));
 
     registerCommands(true);
-
+ 
     vscode.tasks.onDidStartTask(() => getActiveClient().PauseCodeAnalysis());
 
     vscode.tasks.onDidEndTask(event => {

@@ -3,21 +3,27 @@
  * See 'LICENSE' in the project root for license information.
  * ------------------------------------------------------------------------------------------ */
 
-import { ok } from 'assert';
-import { describe, it } from 'mocha';
-import { resolve } from 'path';
-import { getToolsets, identifyToolset, initialize } from '../../src/ToolsetDetection/compiler-detection';
+/* eslint-disable @typescript-eslint/no-misused-promises */
 
-//eval printf \"%s\\n\" \"~/.foo & bar\" this is a test $PATH
-//https://github.com/migueldeicaza/mono-wasm-libc/blob/96eaa7afc23cd675358595e1dd6ab4b6c8f9f07f/src/misc/wordexp.c#L32
+import { ok } from 'assert';
+import { existsSync } from 'fs';
+import { describe, it } from 'mocha';
+import { homedir } from 'os';
+import { delimiter, resolve } from 'path';
+import { getToolsets, identifyToolset, initialize } from '../../src/ToolsetDetection/detect-toolset';
+import { verbose } from '../../src/Utility/Text/streams';
+import { isWindows } from '../../src/constants';
+import { when } from './internal';
 
 const root = resolve(__dirname,'..','..','..','bin','definitions');
-const localRipgrep = 'C:/Users/garre/AppData/Local/Programs/Microsoft VS Code/resources/app/node_modules.asar.unpacked/@vscode/ripgrep/bin/rg.exe';
+const rgFromVSC = `${homedir()}/AppData/Local/Programs/Microsoft VS Code/resources/app/node_modules.asar.unpacked/@vscode/ripgrep/bin/rg.exe`;
 
-describe('Detect Compilers', () => {
+const localRipgrep = existsSync (rgFromVSC) ? rgFromVSC : resolve((process.env["PATH"] ?? '').split(delimiter).find(each => existsSync(resolve(each, isWindows ? 'rg.exe' :  'rg'))) || '' , isWindows ? 'rg.exe' : 'rg');
+
+describe('Detect Compilers', async () => {
     it('can find some compilers',async ()=> {
         const started = Date.now();
-        await initialize([root],localRipgrep);
+        await initialize([root],localRipgrep, false); // quick init - we'll call getToolsets next
         console.debug(`Initialized in ${Date.now() - started}ms`);
 
         const sets = await getToolsets();
@@ -37,7 +43,7 @@ describe('Detect Compilers', () => {
         }
     });
 
-    it('Get Toolset for IAR',async ()=> {
+    when(isWindows && existsSync('C:\\Program Files\\IAR Systems\\Embedded Workbench 9.3\\arm\\bin\\iccarm.exe')).it('Get Toolset for IAR',async ()=> {
         const started = Date.now();
 
         await initialize([root],localRipgrep,false);
@@ -50,28 +56,28 @@ describe('Detect Compilers', () => {
             console.debug(`Detected Compiler ${toolset.definition.name}/${toolset.default.version}/TARGET:${toolset.default.architecture}/HOST:${toolset.default.host}/BITS:${toolset.default.bits}/${toolset.compilerPath}`);
             const isense = await toolset.getIntellisenseConfiguration([]);
             console.debug(`Generated intellisense config in ${Date.now() - started}ms`);
-            console.log(JSON.stringify(isense,null,2));
+            verbose(JSON.stringify(isense,null,2));
         }
     });
 
-    it('Get Toolset for GCC',async ()=> {
+    when(isWindows && existsSync(`${homedir()}\\AppData\\Local\\Arduino15\\packages\\arduino\\tools\\avr-gcc\\7.3.0-atmel3.6.1-arduino7\\bin\\avr-g++.exe`)).it('Get Toolset for GCC',async ()=> {
         const started = Date.now();
 
         await initialize([root],localRipgrep,false);
         console.debug(`Initialized in ${Date.now() - started}ms`);
 
-        const toolset = await identifyToolset('C:\\Users\\garre\\AppData\\Local\\Arduino15\\packages\\arduino\\tools\\avr-gcc\\7.3.0-atmel3.6.1-arduino7\\bin\\avr-g++.exe');
+        const toolset = await identifyToolset(`${homedir()}\\AppData\\Local\\Arduino15\\packages\\arduino\\tools\\avr-gcc\\7.3.0-atmel3.6.1-arduino7\\bin\\avr-g++.exe`);
         console.debug(`Identify ran in ${Date.now() - started}ms`);
 
         if (toolset) {
             console.debug(`Detected Compiler ${toolset.definition.name}/${toolset.default.version}/TARGET:${toolset.default.architecture}/HOST:${toolset.default.host}/BITS:${toolset.default.bits}/${toolset.compilerPath}`);
             const isense = await toolset.getIntellisenseConfiguration([]);
             console.debug(`Generated intellisense config in ${Date.now() - started}ms`);
-            console.log(JSON.stringify(isense,null,2));
+            verbose(JSON.stringify(isense,null,2));
         }
     });
 
-    it('Get Toolset for MSVC',async ()=> {
+    when(isWindows && existsSync('C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Tools\\MSVC\\14.35.32215\\bin\\Hostx86\\x64\\cl.exe')).it('Get Toolset for MSVC',async ()=> {
         const started = Date.now();
 
         await initialize([root],localRipgrep,false);
@@ -84,7 +90,7 @@ describe('Detect Compilers', () => {
             console.debug(`Detected Compiler ${toolset.definition.name}/${toolset.default.version}/TARGET:${toolset.default.architecture}/HOST:${toolset.default.host}/BITS:${toolset.default.bits}/${toolset.compilerPath}`);
             const isense = await toolset.getIntellisenseConfiguration([]);
             console.debug(`Generated intellisense config in ${Date.now() - started}ms`);
-            console.log(JSON.stringify(isense,null,2));
+            verbose(JSON.stringify(isense,null,2));
         }
     });
 

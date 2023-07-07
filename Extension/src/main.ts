@@ -20,6 +20,7 @@ import { CppBuildTaskProvider, cppBuildTaskProvider } from './LanguageServer/cpp
 import { getLocaleId, getLocalizedHtmlPath } from './LanguageServer/localization';
 import { PersistentState } from './LanguageServer/persistentState';
 import { CppSettings } from './LanguageServer/settings';
+import { initialize } from './ToolsetDetection/detect-toolset';
 import { logAndReturn, returns } from './Utility/Async/returns';
 import { CppTools1 } from './cppTools1';
 import { disposeOutputChannels, log } from './logger';
@@ -54,7 +55,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<CppToo
     }
 
     vscode.workspace.registerTextDocumentContentProvider('cpptools-schema', new SchemaProvider());
-
+    // start toolset detection
+    void initialize([util.getExtensionFilePath('bin/definitions')]);
     // Initialize the DebuggerExtension and register the related commands and providers.
     await DebuggerExtension.initialize(context);
 

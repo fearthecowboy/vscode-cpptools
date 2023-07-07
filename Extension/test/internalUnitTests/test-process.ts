@@ -3,7 +3,7 @@
  * See 'LICENSE' in the project root for license information.
  * ------------------------------------------------------------------------------------------ */
 
-import { notStrictEqual, strictEqual } from 'assert';
+import { fail, notStrictEqual, ok, strictEqual } from 'assert';
 import { describe, it } from 'mocha';
 import { Descriptors } from '../../src/Utility/Eventing/descriptor';
 import { notifyNow } from '../../src/Utility/Eventing/dispatcher';
@@ -13,7 +13,32 @@ import { isWindows } from '../../src/constants';
 
 describe('Program Automation', () => {
     if(isWindows) {
-        it('can run a program', async () => {
+        it('can run a program without output [cmd.exe /c rem]', async () => {
+
+            const echo = await new Program('c:/windows/system32/cmd.exe', '/c', 'rem');
+            const p = await echo();
+
+            await p.exitCode;
+
+            strictEqual(p.all().join(), '', 'should not have any text output');
+
+        });
+
+        it('can run a command without output [cmd.exe /c rem]', async () => {
+            console.log("before cmd");
+            const echo = await new Command('c:/windows/system32/cmd.exe', '/c', 'rem');
+            const p = await echo();
+            console.log("before iter");
+            for await(const line of p.console) {
+                console.log(line);
+                fail('should not have any text output');
+            }
+            console.log('hmm that worked');
+            ok(true, 'should not have any text output');
+
+        });
+
+        it('can run a program [cmd.exe /c echo hello]', async () => {
 
             const echo = await new Program('c:/windows/system32/cmd.exe', '/c', 'echo');
             const p = await echo('hello');

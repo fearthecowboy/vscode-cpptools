@@ -2891,6 +2891,11 @@ export class DefaultClient implements Client {
             params.configurations.push(modifiedConfig);
         });
 
+        // GS: look for the intellisenseConfigration
+        // is it there, send that instead
+        // if( !is.nullish(  ) )
+
+        // otherwise fall back to the orig
         await this.languageClient.sendRequest(ChangeCppPropertiesRequest, params);
         if (!!this.lastCustomBrowseConfigurationProviderId && !!this.lastCustomBrowseConfiguration && !!this.lastCustomBrowseConfigurationProviderVersion) {
             if (!this.doneInitialCustomBrowseConfigurationCheck) {

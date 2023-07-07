@@ -6,6 +6,7 @@
 import { ok, strictEqual } from 'assert';
 import { describe } from 'mocha';
 import { setTimeout } from 'timers/promises';
+import { race } from '../../src/Utility/Async/awaiters';
 import { ManualSignal } from '../../src/Utility/Async/manual-signal';
 import { Signal } from '../../src/Utility/Async/signal';
 
@@ -18,12 +19,12 @@ describe('Signal', () => {
         ok(signal.isPending, "signal should be in the pending state.");
 
         // verify that the signal is still not resolved.
-        strictEqual(await Promise.race([signal, setTimeout(1, "timed-out")]), "timed-out", "signal should not have resolved yet.");
+        strictEqual(await race([signal, setTimeout(1, "timed-out")]), "timed-out", "signal should not have resolved yet.");
 
         // create a promise that resolves when the signal is tripped
         const p = signal.then();
         // still not resolved...
-        strictEqual(await Promise.race([p, setTimeout(1, "timed-out")]), "timed-out", "signal should not have resolved yet.");
+        strictEqual(await race([p, setTimeout(1, "timed-out")]), "timed-out", "signal should not have resolved yet.");
 
         // explicitly resolve the signal
         signal.resolve("signal-tripped");
@@ -50,12 +51,12 @@ describe('Manual Signal', () => {
         ok(signal.isPending, "signal should be in the pending state.");
 
         // verify that the signal is still not resolved.
-        strictEqual(await Promise.race([signal, setTimeout(1, "timed-out")]), "timed-out", "signal should not have resolved yet.");
+        strictEqual(await race([signal, setTimeout(1, "timed-out")]), "timed-out", "signal should not have resolved yet.");
 
         // create a promise that resolves when the signal is tripped
         const p = signal.then();
         // still not resolved...
-        strictEqual(await Promise.race([p, setTimeout(1, "timed-out")]), "timed-out", "signal should not have resolved yet.");
+        strictEqual(await race([p, setTimeout(1, "timed-out")]), "timed-out", "signal should not have resolved yet.");
 
         // explicitly resolve the signal
         signal.resolve("signal-tripped");

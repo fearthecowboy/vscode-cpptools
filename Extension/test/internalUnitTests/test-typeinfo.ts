@@ -8,6 +8,7 @@ import { ok, strictEqual } from 'node:assert';
 import { Async } from '../../src/Utility/Async/constructor';
 import { is } from '../../src/Utility/System/guards';
 import { hierarchy, typeOf } from '../../src/Utility/System/info';
+import { verbose } from '../../src/Utility/Text/streams';
 import { AnotherThree } from './examples/someclass';
 
 class Foo {
@@ -47,30 +48,30 @@ describe('Type Information', () => {
     });
 
     it('Show the names of what typeOf returns', async () => {
-        console.log(`Foo: '${typeOf(Foo)}'`);
-        console.log(`new Foo(): '${typeOf(new Foo())}'`);
-        console.log(`Bar: '${typeOf(Bar)}'`);
-        console.log(`new Bar(): '${typeOf(new Bar())}'`);
-        console.log(`Baz: '${typeOf(Baz)}'`);
-        console.log(`new Baz(): '${typeOf(new Baz())}'`);
-        console.log(`await new Baz(): '${typeOf(await new Baz())}'`);
-        console.log(`Buzz: '${typeOf(Buzz)}'`);
-        console.log(`new Buzz(): '${typeOf(new Buzz())}'`);
-        console.log(`await new Buzz(): '${typeOf(await new Buzz())}'`);
-        console.log(`Date: '${typeOf(Date)}'`);
-        console.log(`new Date(): '${typeOf(new Date())}'`);
-        console.log(`foo: '${typeOf(foo)}'`);
-        console.log(`function(): '${typeOf(function () { })}'`);
-        console.log(`()=>{}: '${typeOf(() => { })}'`);
-        console.log(`true: '${typeOf(true)}'`);
-        console.log(`false: '${typeOf(false)}'`);
-        console.log(`1: '${typeOf(1)}'`);
-        console.log(`'': '${typeOf('')}'`);
-        console.log(`[]: '${typeOf([])}'`);
-        console.log(`{}: '${typeOf({})}'`);
-        console.log(`null: '${typeOf(null)}'`);
-        console.log(`undefined: '${typeOf(undefined)}'`);
-        console.log(`NaN: '${typeOf(NaN)}'`);
+        verbose(`Foo: '${typeOf(Foo)}'`);
+        verbose(`new Foo(): '${typeOf(new Foo())}'`);
+        verbose(`Bar: '${typeOf(Bar)}'`);
+        verbose(`new Bar(): '${typeOf(new Bar())}'`);
+        verbose(`Baz: '${typeOf(Baz)}'`);
+        verbose(`new Baz(): '${typeOf(new Baz())}'`);
+        verbose(`await new Baz(): '${typeOf(await new Baz())}'`);
+        verbose(`Buzz: '${typeOf(Buzz)}'`);
+        verbose(`new Buzz(): '${typeOf(new Buzz())}'`);
+        verbose(`await new Buzz(): '${typeOf(await new Buzz())}'`);
+        verbose(`Date: '${typeOf(Date)}'`);
+        verbose(`new Date(): '${typeOf(new Date())}'`);
+        verbose(`foo: '${typeOf(foo)}'`);
+        verbose(`function(): '${typeOf(function () { })}'`);
+        verbose(`()=>{}: '${typeOf(() => { })}'`);
+        verbose(`true: '${typeOf(true)}'`);
+        verbose(`false: '${typeOf(false)}'`);
+        verbose(`1: '${typeOf(1)}'`);
+        verbose(`'': '${typeOf('')}'`);
+        verbose(`[]: '${typeOf([])}'`);
+        verbose(`{}: '${typeOf({})}'`);
+        verbose(`null: '${typeOf(null)}'`);
+        verbose(`undefined: '${typeOf(undefined)}'`);
+        verbose(`NaN: '${typeOf(NaN)}'`);
     });
 
     it('can get the typeof as a string', async () => {

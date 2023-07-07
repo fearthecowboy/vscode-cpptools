@@ -21,7 +21,7 @@
     ],
     "mochaExplorer.debuggerConfig": "MochaTest",
     "mochaExplorer.logpanel": true,
-    "mochaExplorer.timeout": 500000,
+    "mochaExplorer.timeout": 30000,
     "mochaExplorer.require": [
         "source-map-support/register"
     ],

@@ -5,8 +5,12 @@
 
 import { platform } from 'os';
 
-export const isWindows = platform() === 'win32';
+export const OperatingSystem = platform();
+
+export const isWindows = OperatingSystem === 'win32';
+export const isMacOS = OperatingSystem === 'darwin';
+export const isLinux = OperatingSystem === 'linux';
 
 // if you want to see the output of verbose logging, set this to true.
-export const isVerbose = false;
+export const verboseEnabled = false;
 

@@ -80,6 +80,8 @@ export class Process extends Async(class Process extends ProcessEvents {
         let spawned = false;
         executable = resolve(executable); // ensure that slashes are correct -- if they aren't, cmd.exe itself fails when slashes are wrong. (other apps don't necessarily fail, but cmd.exe does)
 
+        const startTime = Date.now();
+        verbose(`Starting '${this.name}' ${args.map((each) => each.toString()).join(' ')}`);
         const process = this.#process = spawn(executable, args.map((each) => each.toString()), { cwd, env, stdio: [stdInOpen ? 'pipe' : null, 'pipe', 'pipe'], shell: false }).
             on('error', (err: Error) => {
                 this.exitCode.reject(err);
@@ -97,9 +99,9 @@ export class Process extends Async(class Process extends ProcessEvents {
                     finalize(this.error);
                 }
 
-                verbose(`Process '${this.name}' exiting with code ${code}.`);
+                verbose(`Ending   '${this.name}' ${args.map((each) => each.toString()).join(' ')} // exiting with code ${code}. in ${Date.now() - startTime}ms}`);
 
-                this.exited(code || (signal as any));
+                this.exited(code ?? (signal as any));
             });
 
         this.console = new ReadWriteLineStream(process.stdout, process.stdin);

@@ -69,7 +69,8 @@ export function reiterable<T>(iterable: AsyncIterable<T>): AsyncIterable<T> {
 
 export type AsynchIterable<T> = AsyncIterable<T> & {
     add(...iterables: (Some<T> | undefined | Promise<T> | Promise<undefined | T>)[]): void;
-    complete(): void; autoComplete(shouldAutocomplete: boolean): AsynchIterable<T>;
+    complete(): void;
+    autoComplete(shouldAutocomplete: boolean): AsynchIterable<T>;
     reiterable(): AsyncIterable<T>;
 };
 
@@ -103,11 +104,13 @@ export function accumulator<T>(...iterables: Some<T>[]): AsynchIterable<T> {
 
         // Loop until all iterators are done, removing them as they complete
         do {
-            if (!iterators.size) {
+            if (!iterators.size && !completeWhenEmpty) {
                 await signal; // wait for a new item to be added, or for the complete signal
             }
+
             while (iterators.size) {
-                const element = await Promise.race(iterators.values());
+                const element = await race([...iterators.values()]);
+
                 // Is that iterator done?
                 if (element.result!.done) {
                     iterators.delete(element.identity);
@@ -120,9 +123,12 @@ export function accumulator<T>(...iterables: Some<T>[]): AsynchIterable<T> {
                 if (value !== undefined && value !== null) {
                     yield value;
                 }
+
             }
             // eslint-disable-next-line no-unmodified-loop-condition
         } while (!completeWhenEmpty);
+        signal.dispose();
+
         // prevent any more iterators from being added
         result.add = () => { throw new Error('AsyncIterable is finished'); };
     }
@@ -130,6 +136,17 @@ export function accumulator<T>(...iterables: Some<T>[]): AsynchIterable<T> {
 export type Some<T> = T | Promise<T> | AsyncIterable<T | undefined> | AsyncIterable<Promise<T> | Promise<undefined>> | Iterable<T> | Iterable<Promise<T>>;
 
 export async function* asyncOf<T>(...items: (undefined | Promise<undefined> | Some<T>)[]): AsyncIterable<NonNullable<T>> {
+    if(is.asyncIterable(items)) {
+        for await (const item of items)  {
+            if (is.asyncIterable(item) || is.iterable(item)) {
+                yield* item as any;
+                continue;
+            }
+            yield item as any;
+        }
+        return;
+    }
+
     for (const item of items) {
         // skip undefined
         if (item) {
@@ -140,4 +157,20 @@ export async function* asyncOf<T>(...items: (undefined | Promise<undefined> | So
             yield item as any;
         }
     }
+}
+
+/**
+ * A substitute for Promise.race()
+ *
+ * This is used so that when there is a global function called 'addMisbehavingPromise' present
+ * it will call that function with the promise returned from Promise.race(...)
+ * otherwise it just falls back to Promise.race()
+ *
+ * This allows unit tests to trap and display 'multiple resolve' errors (Promise.race can look like multiple resolves, but it isn't)
+ *
+ * By using this race function instead, we can ignore those (the v8 JIT will easily optimize this out in production)
+ */
+export function race(promises: Promise<any>[]): Promise<any> {
+    const addMisbehavingPromise: <T>(p: Promise<T>) => Promise<T> = ((global as any).addMisbehavingPromise);
+    return addMisbehavingPromise ? addMisbehavingPromise(Promise.race(promises)) : Promise.race(promises);
 }
