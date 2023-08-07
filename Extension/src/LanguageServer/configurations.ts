@@ -13,6 +13,7 @@ import { setTimeout } from 'timers';
 import * as vscode from 'vscode';
 import * as nls from 'vscode-nls';
 import * as which from 'which';
+import { IntellisenseConfiguration } from '../ToolsetDetection/interfaces';
 import { logAndReturn, returns } from '../Utility/Async/returns';
 import * as util from '../common';
 import { isWindows } from '../constants';
@@ -86,6 +87,7 @@ export interface Configuration {
     mergeConfigurations?: boolean;
     browse?: Browse;
     customConfigurationVariables?: { [key: string]: string };
+    intellisense?: IntellisenseConfiguration;
 }
 
 export interface ConfigurationErrors {

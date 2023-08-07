@@ -86,7 +86,9 @@ export class Signal<T> implements Promise<T>, Resolveable<T> {
         return this;
     }
 
-    dispose() {
-        this.promise.resolve();
+    dispose(value?: T) {
+        if (!this.isCompleted) {
+            this.promise.resolve(value);
+        }
     }
 }

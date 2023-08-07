@@ -32,6 +32,7 @@ import { LanguageClient, ServerOptions } from 'vscode-languageclient/node';
 import * as nls from 'vscode-nls';
 import { DebugConfigurationProvider } from '../Debugger/configurationProvider';
 import { CustomConfigurationProvider1, getCustomConfigProviders, isSameProviderExtensionId } from '../LanguageServer/customProviders';
+import { identifyToolset } from '../ToolsetDetection/detectToolset';
 import { ManualPromise } from '../Utility/Async/manualPromise';
 import { ManualSignal } from '../Utility/Async/manualSignal';
 import { logAndReturn, returns } from '../Utility/Async/returns';
@@ -2987,7 +2988,9 @@ export class DefaultClient implements Client {
         const settings: CppSettings = new CppSettings(this.RootUri);
         // Clone each entry, as we make modifications before sending it, and don't
         // want to add those modifications to the original objects.
-        configurations.forEach((c) => {
+        // configurations.forEach((c) => {
+        for (const c of configurations) {
+
             const modifiedConfig: configs.Configuration = deepCopy(c);
             // Separate compiler path and args before sending to language client
             const compilerPathAndArgs: util.CompilerPathAndArgs =
@@ -2999,10 +3002,27 @@ export class DefaultClient implements Client {
             } else {
                 modifiedConfig.compilerArgs = compilerPathAndArgs.allCompilerArgs;
             }
-
+            // temporary measure -
+            // if there is an `.intellisense` member present (even if empty)
+            // then let's ask for the the toolset configuration for that.
+            if (!is.nullish(modifiedConfig.intellisense))  {
+                try {
+                    // if they have set a compilerPath, then we can use that.
+                    if (modifiedConfig.compilerPath) {
+                        const toolset = await identifyToolset(modifiedConfig.compilerPath);
+                        if (toolset) {
+                            const intellisense = await toolset.getIntellisenseConfiguration(modifiedConfig.compilerArgs ?? [], is.object(modifiedConfig.intellisense) ? modifiedConfig.intellisense : {});
+                            modifiedConfig.intellisense = intellisense;
+                        }
+                    }
+                } catch (e) {
+                    console.log(`Unable to identify toolset from compilerPath: ${modifiedConfig.compilerPath} - ${e}`);
+                }
+            }
             params.configurations.push(modifiedConfig);
-        });
+        }
 
+        // otherwise fall back to the orig
         await this.languageClient.sendRequest(ChangeCppPropertiesRequest, params);
         if (!!this.lastCustomBrowseConfigurationProviderId && !!this.lastCustomBrowseConfiguration && !!this.lastCustomBrowseConfigurationProviderVersion) {
             if (!this.doneInitialCustomBrowseConfigurationCheck) {

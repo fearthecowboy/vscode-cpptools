@@ -1,0 +1,48 @@
+{
+  "name": "Microsoft Visual Studio",
+  "import": [
+    "common/msvc.json",
+    "common/defaults.json"
+  ],
+  "discover": {
+    "binary": "cl",
+
+    "match: # detect the compiler version from the binary": { 
+      "^(?<ver>\\d+[.]\\d+[.]\\d+)[.].*$" : { "version": "${ver}" }
+    },
+
+    "match: ONEOF # detect the host architecture from the binary" : {
+      "\\\\amd64\\\\":                      { "hostArchitecture": "x64" ,"bits": 64, "architecture": "x64"},
+      "\\\\i386\\\\" :                      { "hostArchitecture": "x86" , "bits": 32, "architecture": "x86" },
+      "\\\\arm64\\\\":                      { "hostArchitecture": "arm64" , "bits": 64, "architecture": "arm64" },
+
+      "\\\\x86_amd64\\\\":                  { "hostArchitecture": "x86" ,"bits": 64, "architecture": "x64"},
+      "\\\\x86_arm64\\\\":                  { "hostArchitecture": "x86", "bits": 64, "architecture": "arm64"  },
+      "\\\\x86_arm\\\\":                    { "hostArchitecture": "x86", "bits": 32, "architecture": "arm" },
+      
+      "\\\\amd64_x86\\\\":                  { "hostArchitecture": "x64" , "bits": 32, "architecture": "x86" },
+      "\\\\amd64_arm\\\\":                  { "hostArchitecture": "x64" , "bits": 32, "architecture": "arm"},
+      "\\\\amd64_arm64\\\\":                { "hostArchitecture": "x64", "bits": 64, "architecture": "arm64"  },
+
+      "\\\\arm64_amd64\\\\":                { "hostArchitecture": "arm64" ,"bits": 64, "architecture": "x64"},
+      "\\\\arm64_x86\\\\":                  { "hostArchitecture": "arm64", "bits": 32, "architecture": "x86"  },
+      "\\\\arm64_arm\\\\":                  { "hostArchitecture": "arm64" , "bits": 32, "architecture": "arm"},
+    },
+ 
+    "expression: ONEOF,FOLDER # find the base include folder": {
+      "${binary}/../include":                  { "include.builtInPaths": "${binary}/../include"},
+      "${binary}/../../include":               { "include.builtInPaths": "${binary}/../../include"},
+      "${binary}/../../../include":            { "include.builtInPaths": "${binary}/../../../include"},
+      "${binary}/../../../../include":         { "include.builtInPaths": "${binary}/../../../../include" }
+    },
+
+    "expression: ONEOF,OPTIONAL,FOLDER # find the optional atlmfc include folder": {
+      "${binary}/../atlmfc/include":           { "include.builtInPaths": "${binary}/../atlmfc/include" },
+      "${binary}/../../atlmfc/include":        { "include.builtInPaths": "${binary}/../../atlmfc/include" },
+      "${binary}/../../../atlmfc/include":     { "include.builtInPaths": "${binary}/../../../atlmfc/include" },
+      "${binary}/../../../../atlmfc/include":  { "include.builtInPaths": "${binary}/../../../../atlmfc/include" }
+    }
+    
+  },
+  "intellisense": {}
+}

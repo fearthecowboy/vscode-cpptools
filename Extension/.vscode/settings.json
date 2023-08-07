@@ -6,11 +6,14 @@
     "search.exclude": {
         "out": true // set this to false to include "out" folder in search results
     },
+    "files.associations": {
+        "**/bin/definitions/**/*.json": "jsonl",
+    },
     "typescript.tsdk": "./node_modules/typescript/lib", // we want to use the TS server from our node_modules folder to control its version
     // if you install the mocha test explorer extension, you can run the unit tests from the test explorer UI
     "testExplorer.useNativeTesting": true,
-    "mochaExplorer.files": "./**/internalUnitTests/**/*.test.js",
-    "mochaExplorer.watch": "./**/internalUnitTests/**/*.test.js",
+    "mochaExplorer.files": "./**/unit/**/*.test.js",
+    "mochaExplorer.watch": "./**/unit/**/*.test.js",
     "mochaExplorer.ignore": [
         "**/*skip*",
         "**/dist/test/**/*.d.ts",
@@ -48,5 +51,8 @@
     "eslint.format.enable": true,
     "[javascript]": {
         "editor.tabSize": 4,
-    }
+    },
+    "[jsonl]": {
+        "editor.tabSize": 2,
+    },
 }
