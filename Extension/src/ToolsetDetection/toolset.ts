@@ -46,6 +46,10 @@ export class Toolset {
         return this.definition.version || this.definition.intellisense?.version;
     }
 
+    get name() {
+        return `${this.definition.name}/${this.version}/${this.default.architecture}/${this.default.hostArchitecture || process.arch}`;
+    }
+
     constructor(readonly compilerPath: string, readonly definition: DefinitionFile, private resolver: (prefix: string, expression: string) => any) {
         this.definition.intellisense = this.definition.intellisense || {};
         this.cmd = new Command(this.compilerPath, { env: { PATH: `${dirname(this.compilerPath)}${delimiter}${process.env.PATH}` } });
