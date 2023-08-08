@@ -7,6 +7,7 @@ import { fail } from 'assert';
 import * as os from 'os';
 import { homedir } from 'os';
 import { basename, delimiter, resolve, sep } from 'path';
+import { rcompare } from 'semver';
 import { accumulator } from '../Utility/Async/iterators';
 import { then } from '../Utility/Async/sleep';
 import { filepath, filterToFolders, pathsFromVariable } from '../Utility/Filesystem/filepath';
@@ -20,10 +21,12 @@ import { DefinitionFile, Intellisense, IntellisenseConfiguration } from './inter
 import { clone } from './objectMerge';
 import { getActions, strings } from './strings';
 import { Toolset } from './toolset';
+import escapeStringRegExp = require('escape-string-regexp');
 
 const discoveredToolsets = new Map<string, Toolset>();
 let initialized = false;
 const inProgressCache = new Map<DefinitionFile, Promise<void>>();
+let discovering: Promise<any>|undefined;
 const configurationFolders = new Set<string>();
 
 function createResolver(definition: DefinitionFile, compilerPath: string) {
@@ -163,8 +166,9 @@ async function discover(compilerPath: string, definition: DefinitionFile): Promi
                 } else {
                     const results = Object.entries(block).map(([rawRx, isense]) => [searchInsideBinary(compilerPath, render(rawRx, {}, resolver)), isense] as const);
                     for (const [result, isense] of results) {
-                        if (await result) {
-                            toolset.applyToConfiguration(toolset.default, isense, result);
+                        const r = await result;
+                        if (r) {
+                            toolset.applyToConfiguration(toolset.default, isense, r);
                             continue;
                         }
                         // not found, but not a problem
@@ -281,6 +285,7 @@ export async function initialize(configFolders: string[], rgPath?: string, force
         // start searching now in the background if we've just reset everything
         void getToolsets();
     }
+    return discoveredToolsets;
 }
 
 /**
@@ -321,14 +326,15 @@ export async function getToolsets() {
         inProgressCache.set(definition, then(async () => {
             for await (const toolset of searchForToolsets(definition)) {
                 if (toolset) {
-                    verbose(`Detected Compiler ${toolset.definition.name}/${toolset.version}/TARGET:${toolset.default.architecture}/HOST:${toolset.default.hostArchitecture}/BITS:${toolset.default.bits}/${toolset.compilerPath}`);
+                    verbose(`Detected Compiler ${toolset.name}`);
                 }
             }
         }));
     }
-
     // wait for the inProgress searches to complete
-    await Promise.all(inProgressCache.values());
+    discovering = Promise.all(inProgressCache.values());
+
+    await discovering;
 
     // return the results
     return discoveredToolsets;
@@ -343,8 +349,36 @@ export async function identifyToolset(candidate: string): Promise<Toolset | unde
     if (!initialized) {
         throw new Error('Compiler detection has not been initialized. Call initialize() before calling this.');
     }
-
     const fileInfo = await filepath.info(candidate);
+
+    if (!fileInfo?.isFile) {
+        // they are passing in a non-file so we have to
+        // make sure discovery is done before looking in the cache.
+        await (is.promise(discovering) ? discovering : getToolsets());
+
+        // it's not a file, but it might be a toolset name
+        // check if the candidate is a name of a toolset (* AND ? are supported)
+        const rx = new RegExp(escapeStringRegExp(candidate).replace(/\\\*/g, '.*'));
+
+        // iterate over the discovered toolsets starting with the highest versions
+        for (const toolset of [...discoveredToolsets.values()].sort((a, b) => rcompare(a.version ?? "0.0.0", b.version ?? "0.0.0"))) {
+
+            // return the first match given the regex
+            if (rx.exec(toolset.name)) {
+                return toolset;
+            }
+        }
+
+        // since they didn't pass in a file, and it's not a toolset name, we can't find it
+        return undefined;
+    }
+
+    // check if the given path is already in the cache
+    const cached = discoveredToolsets.get(candidate);
+    if (cached) {
+        return cached;
+    }
+
     for await (const definition of loadCompilerDefinitions(configurationFolders)) {
         const resolver = createResolver(definition, '');
         runConditions(definition, resolver);

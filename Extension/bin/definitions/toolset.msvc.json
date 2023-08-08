@@ -1,5 +1,5 @@
 {
-  "name": "Microsoft Visual Studio",
+  "name": "Microsoft Visual C++",
   "import": [
     "common/msvc.json",
     "common/defaults.json"

@@ -12,6 +12,7 @@ import { Readable } from 'stream';
 import * as vscode from 'vscode';
 import * as nls from 'vscode-nls';
 import * as yauzl from 'yauzl';
+import { getToolsets, initialize } from '../ToolsetDetection/detectToolset';
 import { logAndReturn } from '../Utility/Async/returns';
 import * as util from '../common';
 import * as telemetry from '../telemetry';
@@ -175,6 +176,15 @@ export async function activate(): Promise<void> {
     console.log("starting language server");
     clients = new ClientCollection();
     ui = getUI();
+
+    // initialize the detection code
+    void initialize([util.getExtensionFilePath("bin/definitions")]).then(async () => {
+        // actually do the detection of toolsets (not currently cached on disk)
+        const toolsets = await getToolsets();
+        for (const [k, v] of toolsets) {
+            console.log(`${k} :: ${v.name}\n\n`);
+        }
+    }).catch(logAndReturn.undefined);
 
     // There may have already been registered CustomConfigurationProviders.
     // Request for configurations from those providers.
