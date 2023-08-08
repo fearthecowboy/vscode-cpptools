@@ -109,6 +109,13 @@ More of the scripts will be converted out of `gulp` in the future.
 
 <hr>
 
+### `yarn scripts`
+> #### `yarn scripts` - shows the commands available in the `package.json`
+This shows the commands available in the `scripts` section of the `package.json` file along with their definition
+
+<hr>
+
+
 ### `yarn show`
 > #### `yarn show` - shows the files in the repository that are untracked and .gitignored
 This shows the files in the repository that are not tracked (ie, not in .git) and are 
@@ -159,6 +166,15 @@ including cache, extensions, and configuration for the isolated environment.
 
 This installs the isolated vscode environment if it is not currently installed for this 
 repository. This is done automatically when running the tests, but can be run manually.
+
+> `yarn test regen` - update the pick lists in `.vscode/launch.json` for any new scenarios.
+
+This adds new entries in the the pick lists in `.vscode/launch.json` to include any new scenarios
+that you have added to the `test/scenarios` folder. It will add scenarios that have `assets` and `tests` folders
+(and have been compiled at least once). It does not overwrite or update existing entries.
+
+This saves you the effort of having to manually update the launch.json file.
+
 
 ---
 ### `yarn code`

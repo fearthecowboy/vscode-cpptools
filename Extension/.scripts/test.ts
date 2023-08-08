@@ -5,14 +5,16 @@
 
 import { runTests } from '@vscode/test-electron';
 import { spawnSync } from 'child_process';
+import { CommentArray, CommentObject } from 'comment-json';
 import { readdir } from 'fs/promises';
 import { resolve } from 'path';
 import { env } from 'process';
 import { returns } from '../src/Utility/Async/returns';
 import { filepath } from '../src/Utility/Filesystem/filepath';
+import { is } from '../src/Utility/System/guards';
 import { verbose } from '../src/Utility/Text/streams';
 import { getTestInfo } from '../test/common/selectTests';
-import { $root, $scenario, brightGreen, checkFile, checkFolder, cmdSwitch, cyan, error, green, red } from './common';
+import { $root, $scenario, brightGreen, checkFile, checkFolder, cmdSwitch, cyan, error, green, readJson, red, writeJson } from './common';
 import { install, isolated, options } from './vscode';
 
 export { install, reset } from './vscode';
@@ -145,5 +147,71 @@ export async function all() {
     } finally {
         console.log(finished.join('\n'));
     }
+}
 
+interface Input {
+    id: string;
+    type: string;
+    description: string;
+    options: CommentArray<{label: string; value: string}>;
+}
+
+export async function regen() {
+    // update the .vscode/launch.json file with the scenarios
+    const scenarios = await readdir(`${$root}/test/scenarios`).catch(returns.empty);
+    const launch = await readJson(`${$root}/.vscode/launch.json`) as CommentObject;
+    if (!is.object(launch)) {
+        error(`The file ${$root}/.vscode/launch.json is not valid json`);
+        return;
+    }
+    if (!is.array(launch.inputs)) {
+        error(`The file ${$root}/.vscode/launch.json is missing the 'inputs' array`);
+        return;
+    }
+
+    const inputs = launch.inputs as unknown as CommentArray<Input>;
+    const pickScenario = inputs.find(each => each.id === 'pickScenario');
+    if (!pickScenario) {
+        error(`The file ${$root}/.vscode/launch.json is missing the 'pickScenario' input`);
+        return;
+    }
+    const pickWorkspace = inputs.find(each => each.id === 'pickWorkspace');
+    if (!pickWorkspace) {
+        error(`The file ${$root}/.vscode/launch.json is missing the 'pickWorkspace' input`);
+        return;
+    }
+
+    for (const scenarioFolder of scenarios) {
+        if (scenarioFolder === 'Debugger') {
+            continue;
+        }
+        const prefix = $root.replace(/\\/g, '/');
+
+        if (await filepath.isFolder(`${$root}/test/scenarios/${scenarioFolder}/tests`)) {
+            const testInfo = await getTestInfo(scenarioFolder);
+            if (testInfo) {
+                const label = `${scenarioFolder}   `;
+                const value = testInfo.workspace.replace(/\\/g, '/').replace(prefix, '${workspaceFolder}');
+
+                const scenario = pickScenario.options.find(s => s.label === label);
+                if (!scenario) {
+                    console.log(`Adding scenario ${green(scenarioFolder)} to pickScenario`);
+                    pickScenario.options.push({ label, value });
+                } else {
+                    verbose(`Skipping scenario ${scenarioFolder} because it already exists`);
+                }
+
+                const wrkspace = pickWorkspace.options.find(s => s.label === label);
+                if (!wrkspace) {
+                    console.log(`Adding workspace ${green(scenarioFolder)} to pickWorkspace`);
+                    pickWorkspace.options.push({ label, value });
+                } else {
+                    verbose(`Skipping workspace ${scenarioFolder} because it already exists`);
+                }
+            } else {
+                verbose(`Skipping scenario ${scenarioFolder} because it doesn't look like there are any tests. (maybe try and run ${brightGreen("yarn compile")})`);
+            }
+        }
+    }
+    await writeJson(`${$root}/.vscode/launch.json`, launch);
 }
