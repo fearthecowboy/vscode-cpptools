@@ -20,6 +20,7 @@ import { CppBuildTaskProvider, cppBuildTaskProvider } from './LanguageServer/cpp
 import { getLocaleId, getLocalizedHtmlPath } from './LanguageServer/localization';
 import { PersistentState } from './LanguageServer/persistentState';
 import { CppSettings } from './LanguageServer/settings';
+import { getToolsets, initialize } from './ToolsetDetection/detectToolset';
 import { logAndReturn, returns } from './Utility/Async/returns';
 import { CppTools1 } from './cppTools1';
 import { disposeOutputChannels, log } from './logger';
@@ -54,8 +55,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<CppToo
     }
 
     vscode.workspace.registerTextDocumentContentProvider('cpptools-schema', new SchemaProvider());
-    // start toolset detection
-    // void initialize([util.getExtensionFilePath('bin/definitions')]);
+    // initialize the toolset detection
+    void initialize([util.getExtensionFilePath("bin/definitions")]).then(async () => {
+        // actually do the detection of toolsets (not currently cached on disk)
+        const toolsets = await getToolsets();
+        for (const [k, v] of toolsets) {
+            console.log(`${k} :: ${v.name}\n\n`);
+        }
+    }).catch(logAndReturn.undefined);
+
     // Initialize the DebuggerExtension and register the related commands and providers.
     await DebuggerExtension.initialize(context);
 

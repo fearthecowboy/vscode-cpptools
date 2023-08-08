@@ -73,7 +73,7 @@ filterStdio();
 async function unitTests() {
     await checkFolder('dist/test/unit', `The folder '${$root}/dist/test/unit is missing. You should run ${brightGreen("yarn compile")}\n\n`);
     const mocha = await checkFile(["node_modules/.bin/mocha.cmd", "node_modules/.bin/mocha"], `Can't find the mocha testrunner. You might need to run ${brightGreen("yarn install")}\n\n`);
-    const result = spawnSync(mocha, [`${$root}/dist/test/unit/**/*.test.js`], { stdio:'inherit'});
+    const result = spawnSync(mocha, [`${$root}/dist/test/unit/**/*.test.js`, '--timeout','30000'], { stdio:'inherit'});
     verbose(`\n${green("NOTE:")} If you want to run a scenario test (end-to-end) use ${cmdSwitch('scenario=<NAME>')} \n\n`);
     return result.status;
 }
