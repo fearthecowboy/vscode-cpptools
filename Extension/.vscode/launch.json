@@ -87,6 +87,10 @@
                 {
                     "label": "SingleRootProject   ",
                     "value": "${workspaceFolder}/test/scenarios/SingleRootProject/assets/"
+                },
+                {
+                    "label": "CompilerDetection   ",
+                    "value": "${workspaceFolder}/test/scenarios/CompilerDetection/assets"
                 }
             ]
         },
@@ -111,6 +115,10 @@
                 {
                     "label": "SingleRootProject   ",
                     "value": "${workspaceFolder}/test/scenarios/SingleRootProject/assets/"
+                },
+                {
+                    "label": "CompilerDetection   ",
+                    "value": "${workspaceFolder}/test/scenarios/CompilerDetection/assets"
                 }
             ]
         }
