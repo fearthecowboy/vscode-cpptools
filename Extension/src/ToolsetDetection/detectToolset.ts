@@ -17,7 +17,7 @@ import { verbose } from '../Utility/Text/streams';
 import { render } from '../Utility/Text/taggedLiteral';
 import { isWindows } from '../constants';
 import { loadCompilerDefinitions, resetCompilerDefinitions, runConditions } from './definition';
-import { DefinitionFile, Intellisense, IntellisenseConfiguration } from './interfaces';
+import { DefinitionFile, IntelliSense, IntelliSenseConfiguration } from './interfaces';
 import { clone } from './objectMerge';
 import { getActions, strings } from './strings';
 import { Toolset } from './toolset';
@@ -93,7 +93,7 @@ function createResolver(definition: DefinitionFile, compilerPath: string) {
                     default:
                         // if the request was looking for a value in the intellisense configuration, we'll try to resolve that
                         if (definition.intellisense && expression in definition.intellisense) {
-                            return (definition.intellisense as any)[expression as keyof IntellisenseConfiguration];
+                            return (definition.intellisense as any)[expression as keyof IntelliSenseConfiguration];
                         }
                 }
                 break;
@@ -135,9 +135,9 @@ async function discover(compilerPath: string, definition: DefinitionFile): Promi
     // create toolset object for the result.
     toolset = new Toolset(compilerPath, definition, resolver);
 
-    const intellisense = definition.intellisense as Intellisense;
+    const intellisense = definition.intellisense as IntelliSense;
 
-    const requirements = getActions<Record<string, IntellisenseConfiguration>>(definition.discover as any, [
+    const requirements = getActions<Record<string, IntelliSenseConfiguration>>(definition.discover as any, [
         ['match', ['optional', 'priority', 'oneof']],
         ['expression', ['oneof', 'optional', 'priority', 'folder', 'file']]
     ]);

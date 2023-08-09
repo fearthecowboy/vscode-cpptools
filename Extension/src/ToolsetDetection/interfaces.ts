@@ -148,7 +148,7 @@ export interface Includes {
 }
 
 /** the Intellisense interface represents the things that a given toolset supports/exposes */
-export interface Intellisense {
+export interface IntelliSense {
     /** meta-property: telemetry entries to track */
     [key: `telemetry:${string}`]: Record<string, string | number | boolean>;
 
@@ -201,7 +201,7 @@ export interface Intellisense {
     compilerArgs?: OneOrMore<string>; // arguments that are assumed to be passed to the compiler on the command line
 }
 
-export interface IntellisenseConfiguration extends Intellisense {
+export interface IntelliSenseConfiguration extends IntelliSense {
     /** meta-property: things can be removed via remove:<setting> ...  */
     [key: `remove:${string}`]: OneOrMore<string>;
 
@@ -236,7 +236,7 @@ export interface DefinitionFile {
     analysis?: Analysis;
 
     /** Explicitly declared settings about this toolset */
-    intellisense?: DeepPartial<Intellisense>;
+    intellisense?: DeepPartial<IntelliSense>;
 
     /** The package identities if we are interested in bootstrapping it. */
     package?: Package;

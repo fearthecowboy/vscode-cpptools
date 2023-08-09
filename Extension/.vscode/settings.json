@@ -55,4 +55,14 @@
     "[jsonl]": {
         "editor.tabSize": 2,
     },
+    "eslint.workingDirectories": [
+        {
+            "changeProcessCWD": true,
+            "directory": "./",
+        },
+        {
+            "changeProcessCWD": true,
+            "directory": "./.scripts",
+        }
+    ],
 }

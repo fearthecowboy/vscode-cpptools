@@ -13,9 +13,9 @@ import { filepath, tmpFile } from '../Utility/Filesystem/filepath';
 import { cmdlineToArray, Command, CommandFunction } from '../Utility/Process/program';
 import { is } from '../Utility/System/guards';
 import { evaluateExpression, recursiveRender, render } from '../Utility/Text/taggedLiteral';
-import { formatIntellisenseBlock } from './definition';
+import { formatIntelliSenseBlock } from './definition';
 
-import { CppStandard, CStandard, DeepPartial, DefinitionFile, Intellisense, IntellisenseConfiguration, Language, OneOrMore } from './interfaces';
+import { CppStandard, CStandard, DeepPartial, DefinitionFile, IntelliSense, IntelliSenseConfiguration, Language, OneOrMore } from './interfaces';
 import { mergeObjects } from './objectMerge';
 import { getActions, strings } from './strings';
 
@@ -34,12 +34,12 @@ function isCpp(language?: string): boolean {
  */
 export class Toolset {
     cachedQueries = new Map<string, string>();
-    cachedAnalysis = new Map<string, IntellisenseConfiguration>();
+    cachedAnalysis = new Map<string, IntelliSenseConfiguration>();
 
     cmd: Promise<CommandFunction>;
     rxResolver: (prefix: string, expression: string) => any;
     get default() {
-        return this.definition.intellisense as Intellisense;
+        return this.definition.intellisense as IntelliSense;
     }
 
     get version() {
@@ -76,11 +76,11 @@ export class Toolset {
         };
     }
 
-    applyToConfiguration(intellisenseConfiguration: IntellisenseConfiguration | Intellisense, partial: DeepPartial<IntellisenseConfiguration>, data: Record<string, any> = intellisenseConfiguration) {
-        mergeObjects(intellisenseConfiguration, recursiveRender(formatIntellisenseBlock(partial), data, this.resolver));
+    applyToConfiguration(intellisenseConfiguration: IntelliSenseConfiguration | IntelliSense, partial: DeepPartial<IntelliSenseConfiguration>, data: Record<string, any> = intellisenseConfiguration) {
+        mergeObjects(intellisenseConfiguration, recursiveRender(formatIntelliSenseBlock(partial), data, this.resolver));
     }
 
-    async query(command: string, queries: Record<string, DeepPartial<IntellisenseConfiguration>>, intellisenseConfiguration: IntellisenseConfiguration) {
+    async query(command: string, queries: Record<string, DeepPartial<IntelliSenseConfiguration>>, intellisenseConfiguration: IntelliSenseConfiguration) {
         // check if we've handled this command before.
         const key = render(command, {}, this.resolver);
         let text = this.cachedQueries.get(key);
@@ -198,7 +198,7 @@ export class Toolset {
         }
     }
 
-    processComamndLineArgs(block: Record<string, any>, commandLineArgs: string[], intellisenseConfiguration: IntellisenseConfiguration, flags: Map<string, any>) {
+    processComamndLineArgs(block: Record<string, any>, commandLineArgs: string[], intellisenseConfiguration: IntelliSenseConfiguration, flags: Map<string, any>) {
         // get all the regular expressions and the results to apply
         const allEngineeredRegexes: [RegExp[], any][] = Object.entries(block).map(([engineeredRx, result]) => [engineeredRx.split(';').map(rx => new RegExp(render(`^${rx}$`, {}, this.rxResolver))), result]);
         const keptArgs = new Array<string>();
@@ -270,7 +270,7 @@ export class Toolset {
     /**
      * Processes the analysis section of the definition file given a command line to work with
      */
-    async getIntellisenseConfiguration(compilerArgs: string[], options?: { baseDirectory?: string; sourceFile?: string; language?: Language; standard?: CppStandard | CStandard; userIntellisenseConfiguration?: IntellisenseConfiguration }): Promise<IntellisenseConfiguration> {
+    async getIntellisenseConfiguration(compilerArgs: string[], options?: { baseDirectory?: string; sourceFile?: string; language?: Language; standard?: CppStandard | CStandard; userIntellisenseConfiguration?: IntelliSenseConfiguration }): Promise<IntelliSenseConfiguration> {
         let intellisenseConfiguration = this.cachedAnalysis.get(compilerArgs.join(' '));
         if (intellisenseConfiguration) {
             // after getting the cached results, merge in user settings (which are not cached here)
@@ -288,14 +288,14 @@ export class Toolset {
             language: options?.language,
             standard: options?.standard,
             compilerPath: this.compilerPath
-        } as IntellisenseConfiguration;
+        } as IntelliSenseConfiguration;
 
         // no analysis? nothing to do then. (really?)
         if (!this.definition.analysis) {
             return intellisenseConfiguration;
         }
 
-        const entries = getActions<Record<string, IntellisenseConfiguration>>(this.definition.analysis as any, [
+        const entries = getActions<Record<string, IntelliSenseConfiguration>>(this.definition.analysis as any, [
             ['task', ['priority', 'c', 'cpp', 'c++']],
             ['command', ['priority', 'c', 'cpp', 'c++', 'no_consume']],
             ['quer', ['priority', 'c', 'cpp', 'c++']],
@@ -323,13 +323,13 @@ export class Toolset {
                     break;
 
                 case 'quer':
-                    for (const [command, queries] of Object.entries(block as Record<string, Record<string, DeepPartial<IntellisenseConfiguration>>>)) {
+                    for (const [command, queries] of Object.entries(block as Record<string, Record<string, DeepPartial<IntelliSenseConfiguration>>>)) {
                         await this.query(command, queries, intellisenseConfiguration);
                     }
                     break;
 
                 case 'expression':
-                    for (const [expr, isense] of Object.entries(block as Record<string, DeepPartial<IntellisenseConfiguration>>)) {
+                    for (const [expr, isense] of Object.entries(block as Record<string, DeepPartial<IntelliSenseConfiguration>>)) {
                         if (evaluateExpression(expr, intellisenseConfiguration, this.resolver)) {
                             this.applyToConfiguration(intellisenseConfiguration, isense);
                         }
