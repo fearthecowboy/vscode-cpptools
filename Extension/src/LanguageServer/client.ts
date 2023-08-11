@@ -3005,21 +3005,19 @@ export class DefaultClient implements Client {
                 modifiedConfig.compilerArgs = compilerPathAndArgs.allCompilerArgs;
             }
             // temporary measure -
-            // if there is an `.intellisense` member present (even if empty)
+            // if there is an `.compiler` member present
             // then let's ask for the the toolset configuration for that.
-            if (!is.nullish(modifiedConfig.intellisense))  {
+            if (is.string(modifiedConfig.compiler))  {
                 try {
-                    // if they have set a compilerPath, then we can use that.
-                    if (modifiedConfig.compilerPath) {
-                        const toolset = await identifyToolset(modifiedConfig.compilerPath);
-                        if (toolset) {
-                            const intellisense = await toolset.getIntellisenseConfiguration(modifiedConfig.compilerArgs ?? [], is.object(modifiedConfig.intellisense) ? modifiedConfig.intellisense : {});
-                            modifiedConfig.intellisense = intellisense;
-                        }
+                    const toolset = await identifyToolset(modifiedConfig.compiler);
+                    if (toolset) {
+                        const intellisense = await toolset.getIntellisenseConfiguration(modifiedConfig.compilerArgs ?? [], is.object(modifiedConfig.intellisense) ? modifiedConfig.intellisense : {});
+                        modifiedConfig.intellisense = toolset.harvestFromConfiguration(modifiedConfig, intellisense);
                     }
                 } catch (e) {
-                    console.log(`Unable to identify toolset from compilerPath: ${modifiedConfig.compilerPath} - ${e}`);
+                    console.log(`Unable to identify toolset from compilerPath: ${modifiedConfig.compiler} - ${e}`);
                 }
+                console.log(JSON.stringify(modifiedConfig, null, 2));
             }
             params.configurations.push(modifiedConfig);
         }

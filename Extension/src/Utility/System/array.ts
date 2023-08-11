@@ -53,4 +53,3 @@ export function firstOrFail<TElement>(iterable: Iterable<TElement> | undefined |
     }
     return result !== undefined ? result as TElement : fail(message);
 }
-

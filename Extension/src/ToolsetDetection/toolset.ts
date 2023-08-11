@@ -9,15 +9,15 @@
 import { unlinkSync, writeFileSync } from 'fs';
 import { readFile } from 'fs/promises';
 import { delimiter, dirname } from 'path';
+import { Configuration } from '../LanguageServer/configurations';
 import { filepath, tmpFile } from '../Utility/Filesystem/filepath';
-import { cmdlineToArray, Command, CommandFunction } from '../Utility/Process/program';
+import { Command, CommandFunction, cmdlineToArray } from '../Utility/Process/program';
 import { is } from '../Utility/System/guards';
 import { evaluateExpression, recursiveRender, render } from '../Utility/Text/taggedLiteral';
 import { formatIntellisenseBlock } from './definition';
-
-import { CppStandard, CStandard, DeepPartial, DefinitionFile, Intellisense, IntellisenseConfiguration, Language, OneOrMore } from './interfaces';
+import { CStandard, CppStandard, DeepPartial, DefinitionFile, FullIntellisenseConfiguration, IntelliSense, IntelliSenseConfiguration, Language, OneOrMore } from './interfaces';
 import { mergeObjects } from './objectMerge';
-import { getActions, strings } from './strings';
+import { appendUniquePath, getActions, strings } from './strings';
 
 function isC(language?: string): boolean {
     return language === 'c';
@@ -34,7 +34,7 @@ function isCpp(language?: string): boolean {
  */
 export class Toolset {
     cachedQueries = new Map<string, string>();
-    cachedAnalysis = new Map<string, IntellisenseConfiguration>();
+    cachedAnalysis = new Map<string, FullIntellisenseConfiguration>();
 
     cmd: Promise<CommandFunction>;
     rxResolver: (prefix: string, expression: string) => any;
@@ -67,7 +67,7 @@ export class Toolset {
                     case 'value':
                         return '(?<value>.+)';
 
-                    case 'keyEqualsValue':
+                    case 'keyequalsvalue':
                         return '(?<key>[^=]+)=(?<value>.+)';
                 }
             }
@@ -207,6 +207,10 @@ export class Toolset {
         while (commandLineArgs.length) {
             nextRx:
             for (const [engineeredRegexSet, isense] of allEngineeredRegexes) {
+                //if (engineeredRegexSet[0].toString().indexOf('D') > -1) {
+                // eslint-disable-next-line no-debugger
+                //  debugger;
+                //}
                 const capturedData = {};
                 for (const result of engineeredRegexSet.map((rx, index) => rx.exec(commandLineArgs[index]))) {
                     if (result === null) {
@@ -220,10 +224,10 @@ export class Toolset {
                 this.applyToConfiguration(intellisenseConfiguration, isense, capturedData);
 
                 // remove the args used from the command line
-                const usedArgs = commandLineArgs.slice(0, engineeredRegexSet.length);
+                const usedArgs = commandLineArgs.splice(0, engineeredRegexSet.length);
 
                 // but if the no_consume flag set, we should keep the args in the KeptArgs list
-                if (!flags.get('no_consume')) {
+                if (flags.get('no_consume')) {
                     // remove the arguments from the command line
                     keptArgs.push(...usedArgs);
                 }
@@ -267,10 +271,38 @@ export class Toolset {
         }
     }
 
+    harvestFromConfiguration(configuration: Configuration, intellisense: FullIntellisenseConfiguration) {
+        // includePath
+        appendUniquePath(intellisense.include.paths, configuration.includePath);
+
+        // macFrameworkPath
+        appendUniquePath(intellisense.include.frameworkPaths, configuration.macFrameworkPath);
+
+        // cStandard
+        // cppStandard
+
+        // compilerArgs
+        // if (configuration.compilerArgs) {
+        // intellisense.compilerArgs.push(...configuration.compilerArgs);
+        //}
+
+        // defines
+        for (const define of configuration.defines || []) {
+            const [,key, value] = /^([^=]+)=*(.*)?$/.exec(define) ?? [];
+            if (key && value) {
+                intellisense.defines[key] = value;
+            }
+        }
+
+        // forcedInclude
+        appendUniquePath(intellisense.forcedIncludeFiles, configuration.forcedInclude);
+
+        return intellisense;
+    }
     /**
      * Processes the analysis section of the definition file given a command line to work with
      */
-    async getIntellisenseConfiguration(compilerArgs: string[], options?: { baseDirectory?: string; sourceFile?: string; language?: Language; standard?: CppStandard | CStandard; userIntellisenseConfiguration?: IntellisenseConfiguration }): Promise<IntellisenseConfiguration> {
+    async getIntellisenseConfiguration(compilerArgs: string[], options?: { baseDirectory?: string; sourceFile?: string; language?: Language; standard?: CppStandard | CStandard; userIntellisenseConfiguration?: IntelliSenseConfiguration }): Promise<FullIntellisenseConfiguration> {
         let intellisenseConfiguration = this.cachedAnalysis.get(compilerArgs.join(' '));
         if (intellisenseConfiguration) {
             // after getting the cached results, merge in user settings (which are not cached here)
@@ -288,58 +320,56 @@ export class Toolset {
             language: options?.language,
             standard: options?.standard,
             compilerPath: this.compilerPath
-        } as IntellisenseConfiguration;
+        } as FullIntellisenseConfiguration;
 
-        // no analysis? nothing to do then. (really?)
-        if (!this.definition.analysis) {
-            return intellisenseConfiguration;
-        }
+        // Analysis phase
+        if (this.definition.analysis) {
 
-        const entries = getActions<Record<string, IntellisenseConfiguration>>(this.definition.analysis as any, [
-            ['task', ['priority', 'c', 'cpp', 'c++']],
-            ['command', ['priority', 'c', 'cpp', 'c++', 'no_consume']],
-            ['quer', ['priority', 'c', 'cpp', 'c++']],
-            ['expression', ['priority', 'c', 'cpp', 'c++']]
-        ]);
-        // process the entries in priority order
-        for (const { action, block, flags } of entries) {
+            const entries = getActions<Record<string, IntelliSenseConfiguration>>(this.definition.analysis as any, [
+                ['task', ['priority', 'c', 'cpp', 'c++']],
+                ['command', ['priority', 'c', 'cpp', 'c++', 'no_consume']],
+                ['quer', ['priority', 'c', 'cpp', 'c++']],
+                ['expression', ['priority', 'c', 'cpp', 'c++']]
+            ]);
+            // process the entries in priority order
+            for (const { action, block, flags } of entries) {
             // If the flags specifies 'C' and the language is not 'c', then we should skip this section.
-            if (flags.get('c') && !isC(intellisenseConfiguration.lanugage)) {
-                continue;
-            }
+                if (flags.get('c') && !isC(intellisenseConfiguration.lanugage)) {
+                    continue;
+                }
 
-            // If the flags specifies 'c++' and the language is not 'c++', then we should skip this section.
-            if ((flags.get('cpp') || flags.get('c++') && !isCpp(intellisenseConfiguration.lanugage))) {
-                continue;
-            }
+                // If the flags specifies 'c++' and the language is not 'c++', then we should skip this section.
+                if ((flags.get('cpp') || flags.get('c++') && !isCpp(intellisenseConfiguration.lanugage))) {
+                    continue;
+                }
 
-            switch (action) {
-                case 'task':
-                    await this.runTasks(block as unknown as OneOrMore<string>, compilerArgs /* , intellisenseConfiguration */);
-                    break;
+                switch (action) {
+                    case 'task':
+                        await this.runTasks(block as unknown as OneOrMore<string>, compilerArgs /* , intellisenseConfiguration */);
+                        break;
 
-                case 'command':
-                    compilerArgs = this.processComamndLineArgs(block, compilerArgs, intellisenseConfiguration, flags);
-                    break;
+                    case 'command':
+                        compilerArgs = this.processComamndLineArgs(block, compilerArgs, intellisenseConfiguration, flags);
+                        break;
 
-                case 'quer':
-                    for (const [command, queries] of Object.entries(block as Record<string, Record<string, DeepPartial<IntellisenseConfiguration>>>)) {
-                        await this.query(command, queries, intellisenseConfiguration);
-                    }
-                    break;
-
-                case 'expression':
-                    for (const [expr, isense] of Object.entries(block as Record<string, DeepPartial<IntellisenseConfiguration>>)) {
-                        if (evaluateExpression(expr, intellisenseConfiguration, this.resolver)) {
-                            this.applyToConfiguration(intellisenseConfiguration, isense);
+                    case 'quer':
+                        for (const [command, queries] of Object.entries(block as Record<string, Record<string, DeepPartial<IntelliSenseConfiguration>>>)) {
+                            await this.query(command, queries, intellisenseConfiguration);
                         }
-                    }
-                    break;
-                default:
-                    break;
+                        break;
+
+                    case 'expression':
+                        for (const [expr, isense] of Object.entries(block as Record<string, DeepPartial<IntelliSenseConfiguration>>)) {
+                            if (evaluateExpression(expr, intellisenseConfiguration, this.resolver)) {
+                                this.applyToConfiguration(intellisenseConfiguration, isense);
+                            }
+                        }
+                        break;
+                    default:
+                        break;
+                }
             }
         }
-
         // before we go, let's make sure that any *paths are unique, and that they are all absolute
         await this.ensurePathsAreLegit(intellisenseConfiguration);
 
@@ -349,7 +379,7 @@ export class Toolset {
         // cache the results
         this.cachedAnalysis.set(compilerArgs.join(' '), intellisenseConfiguration);
 
-        // after the cached results, merge in user settings (since the yuser can change those at any time)
+        // after the cached results, merge in user settings (since the user can change those at any time)
         if (options?.userIntellisenseConfiguration) {
             this.applyToConfiguration(intellisenseConfiguration, options.userIntellisenseConfiguration);
 
@@ -357,6 +387,42 @@ export class Toolset {
             await this.ensurePathsAreLegit(intellisenseConfiguration);
         }
 
+        this.postProcessIntellisense(intellisenseConfiguration);
+
         return intellisenseConfiguration;
     }
+
+    /** the final steps to producing the parser args for EDG */
+    postProcessIntellisense(intellisense: IntelliSense) {
+        const args = [];
+        // turn the macros into -D flags
+        if (intellisense.macros) {
+            for (const [name, value] of Object.entries(intellisense.macros)) {
+                args.push(`-D${name}=${value}`);
+            }
+        }
+
+        // generate the two sets of include paths that EDG supports:
+        // --inlcude_directory and --sys_include
+        for (const each of intellisense.include?.builtInPaths ?? []) {
+            args.push('--sys_include', each);
+        }
+        for (const each of intellisense.include?.systemPaths ?? []) {
+            args.push('--sys_include', each);
+        }
+        for (const each of intellisense.include?.externalPaths ?? []) {
+            args.push('--sys_include', each);
+        }
+
+        for (const each of intellisense.include?.paths ?? []) {
+            args.push('--include_directory', each);
+        }
+        for (const each of intellisense.include?.environmentPaths ?? []) {
+            args.push('--include_directory', each);
+        }
+        if (is.array(intellisense.parserArguments)) {
+            intellisense.parserArguments.push(...args);
+        }
+    }
+
 }

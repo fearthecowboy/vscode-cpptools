@@ -147,6 +147,17 @@ export interface Includes {
     environmentPaths: OneOrMore<Expression>; // paths that are specified via environment variables (ie `INCLUDE`)
 }
 
+export interface FullIncludes extends Includes {
+    quotePaths: Expression[];      // specified `-iquote` paths - Used for ONLY #include "..."
+    paths: Expression[];           // standard specified include paths (ie, `-I`)
+    systemPaths: Expression[];     // specified `-isystem` paths
+    builtInPaths: Expression[];    // Directories specified that are built into the compiler (usually thru interrogation)
+    afterPaths: Expression[];      // specified `-idirafter` paths
+    externalPaths: Expression[];   // specified `-external:I` paths (MSVC)
+    frameworkPaths: Expression[];  // specified `-F` paths (MacOS)
+    environmentPaths: Expression[]; // paths that are specified via environment variables (ie `INCLUDE`)
+}
+
 /** the Intellisense interface represents the things that a given toolset supports/exposes */
 export interface Intellisense {
     /** meta-property: telemetry entries to track */
@@ -216,6 +227,41 @@ export interface IntellisenseConfiguration extends Intellisense {
 
     /** the full path to the compiler */
     compilerPath: string;
+}
+
+export interface FullIntellisenseConfiguration extends IntelliSenseConfiguration {
+    /** #define macros that are specified so that the backend understands how to handle the code */
+    macros: Macros;
+
+    /** Include folders */
+    include: FullIncludes;
+
+    /** Framework locations */
+    frameworkPaths: Expression[];
+
+    /** paths to files that are forcibly #included */
+    forcedIncludeFiles: Expression[];
+
+    /** refined arguments that are passed to the language parser (edg) */
+    parserArguments?: string[];
+
+    /** the target platform */
+    platform: Platform;
+
+    /** The target CPU/Processor architecture */
+    architecture: Architecture;
+
+    /** architecture bits? */
+    bits: number;
+
+    /** sizes of the various types */
+    sizes: Required<SizeOf>;
+
+    /** type aliases (what is the 'type' for a given type ) */
+    types: Required<TypeAliases>;
+
+    /** additional arguments that are being passed to the compiler (unprocessed) */
+    compilerArgs: string[];
 }
 
 /** The interface for the toolset.XXX.json file */
