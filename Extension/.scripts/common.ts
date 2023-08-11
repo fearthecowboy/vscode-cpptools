@@ -119,13 +119,12 @@ export async function write(filePath: string, data: Buffer|string) {
     await writeFile(filePath, data);
 }
 
-export async function updateFiles(files: string[], dest: string| Promise<string>) {
+export async function updateFiles(files: string[], dest: string| Promise<string>, prefix?: string) {
     const target = is.promise(dest) ? await dest : dest;
     await Promise.all(files.map(async (each) => {
         const sourceFile = await filepath.isFile(each, $root);
         if (sourceFile) {
-            const targetFile = resolve(target, each);
-            console.log(targetFile);
+            const targetFile = prefix ? resolve(target, each.replace(prefix, '.')) : resolve(target, each);
             await write(targetFile, await readFile(sourceFile));
         }
     }));
@@ -291,3 +290,55 @@ export async function checkCompiled() {
     await checkFile('dist/src/main.js', `The extension entry point '${$root}/dist/src/main.js is missing. You should run ${brightGreen("yarn compile")}\n\n`);
     verbose('Compiled files appear to be in place.');
 }
+
+const sowrite = process.stdout.write.bind(process.stdout) as (...args: unknown[]) => boolean;
+const sewrite = process.stderr.write.bind(process.stderr) as (...args: unknown[]) => boolean;
+
+const filters = [
+    /^\[(.*)\].*/,
+    /^Unexpected token A/,
+    /Cannot register 'cmake.cmakePath'/,
+    /\[DEP0005\] DeprecationWarning/,
+    /--trace-deprecation/,
+    /Iconv-lite warning/,
+    /^Found existing install/
+];
+
+// remove unwanted messages from stdio
+function filterStdio() {
+    process.stdout.write = function (...args: unknown[]) {
+        if (typeof(args[0]) === 'string') {
+            const text = args[0];
+
+            if (filters.some(each => text.match(each))) {
+                return true;
+            }
+        }
+        if (args[0] instanceof Buffer) {
+            const text = args[0].toString();
+            if (filters.some(each => text.match(each))) {
+                return true;
+            }
+        }
+        return sowrite(...args);
+    };
+
+    process.stderr.write = function (...args: unknown[]) {
+        if (typeof(args[0]) === 'string') {
+            const text = args[0];
+
+            if (filters.some(each => text.match(each))) {
+                return true;
+            }
+        }
+        if (args[0] instanceof Buffer) {
+            const text = args[0].toString();
+            if (filters.some(each => text.match(each))) {
+                return true;
+            }
+        }
+        return sewrite(...args);
+    };
+}
+
+filterStdio();

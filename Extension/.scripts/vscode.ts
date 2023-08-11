@@ -66,12 +66,12 @@ export async function installExtension(name: string, version?: string) {
     verbose({cli, args});
     const result = spawnSync(cli, args, { encoding: 'utf-8', stdio: 'pipe', env:environment()});
     verbose(result.stdout);
-
-    for (const line of result.output){
-        const [,id, ver] = /Extension '(.*)' v(.*?)\s/g.exec(line) ?? [];
-        if (id) {
-            console.log({id, ver});
-            return {id, ver};
+    if (!result.status){
+        for (const line of result.output){
+            const [,id, ver] = /Extension '(.*)' v(.*?)\s/g.exec(line) ?? [];
+            if (id) {
+                return {id, ver};
+            }
         }
     }
     error(result.stderr);
@@ -84,12 +84,13 @@ export async function uninstallExtension(name: string) {
     args = [...args, '--uninstall-extension', name];
 
     const result = spawnSync(cli, args, { encoding: 'utf-8', stdio: 'pipe', env:environment()});
-    console.log(result.error);
-    for (const line of result.output){
-        const [,id, ver] = /Extension '(.*)' v(.*?)\s/g.exec(line) ?? [];
-        if (id) {
-            console.log({id, ver});
-            break;
+    if (!result.status){
+        for (const line of result.output){
+            const [,id, ver] = /Extension '(.*)' v(.*?)\s/g.exec(line) ?? [];
+            if (id) {
+                return {id, ver};
+                break;
+            }
         }
     }
 }
