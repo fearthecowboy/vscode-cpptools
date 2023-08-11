@@ -486,6 +486,7 @@ export interface GenerateDoxygenCommentParams {
     isCodeAction: boolean;
     isCursorAboveSignatureLine: boolean | undefined;
 }
+
 export interface GenerateDoxygenCommentResult {
     contents: string;
     initPosition: Position;
@@ -498,6 +499,7 @@ export interface GenerateDoxygenCommentResult {
 export interface IndexableQuickPickItem extends vscode.QuickPickItem {
     index: number;
 }
+
 export interface UpdateTrustedCompilerPathsResult {
     compilerPath: string;
 }
