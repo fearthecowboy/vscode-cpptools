@@ -3,6 +3,7 @@
  * See 'LICENSE' in the project root for license information.
  * ------------------------------------------------------------------------------------------ */
 
+import { normalize } from 'path';
 import { is } from '../Utility/System/guards';
 import { OneOrMore } from './interfaces';
 
@@ -19,6 +20,41 @@ export function strings(input: OneOrMore<string> | undefined | Set<string> | (st
     return input as string[];
 }
 
+/** pushes one or more paths to the array if they aren't in there already. */
+export function appendUniquePath(collection: string[]|Set<string>, elements: (string|undefined)[]|string|undefined) {
+    if (!elements) {
+        return collection;
+    }
+
+    for (let path of is.string(elements) ? [elements] : elements) {
+        // skip empty values
+        if (!path) {
+            continue;
+        }
+
+        // normalize path first.
+        path = normalize(path);
+
+        // drop trailing slashes
+        path = path.endsWith('\\') ? path.substring(0, path.length - 1) : path;
+
+        // append if not present.
+
+        // sets are smart
+        if (is.set(collection)) {
+            collection.add(path);
+            continue;
+        }
+
+        // arrays we have to look
+        if (!collection.includes(path)) {
+            collection.push(path);
+        }
+
+    }
+    return collection;
+}
+
 export function getActions<T>(obj: any, actions: [string, string[]][]) {
     if (!obj || typeof obj !== 'object') {
         return [];
@@ -33,7 +69,7 @@ export function getActions<T>(obj: any, actions: [string, string[]][]) {
         const flags = new Map();
         for (const each of flag.split(',')) {
             // eslint-disable-next-line prefer-const
-            let [key, value] = each.split('=', 2);
+            let [,key, value] = /^([^=]+)=*(.*)?$/.exec(each) ?? [];
             if (!key) {
                 continue;
             }

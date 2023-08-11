@@ -54,6 +54,10 @@ export class is {
         return Array.isArray(instance);
     }
 
+    static set(instance: any): instance is Set<any> {
+        return instance instanceof Set;
+    }
+
     static string(instance: any): instance is string {
         return typeof instance === 'string';
     }
