@@ -14,7 +14,7 @@ import { AsyncMap } from '../Utility/Async/map';
 import { FastFinder } from '../Utility/Filesystem/ripgrep';
 import { is } from '../Utility/System/guards';
 import { evaluateExpression } from '../Utility/Text/taggedLiteral';
-import { DeepPartial, DefinitionFile, Intellisense, IntellisenseConfiguration, PartialDefinitionFile, PkgMgr } from './interfaces';
+import { DeepPartial, DefinitionFile, IntelliSense, IntelliSenseConfiguration, PartialDefinitionFile, PkgMgr } from './interfaces';
 import { mergeObjects } from './objectMerge';
 import { strings } from './strings';
 
@@ -65,7 +65,7 @@ function isPartialToolsetDefinition(definition: any): definition is DefinitionFi
 const compilerDefintions = new AsyncMap<string, DefinitionFile>();
 const partialDefinitions = new AsyncMap<string, PartialDefinitionFile>();
 
-export function formatIntellisenseBlock<T extends DeepPartial<IntellisenseConfiguration> | DeepPartial<Intellisense>>(intellisense?: T): T {
+export function formatIntelliSenseBlock<T extends DeepPartial<IntelliSenseConfiguration> | DeepPartial<IntelliSense>>(intellisense?: T): T {
     if (!intellisense) {
         return {} as T;
     }
@@ -102,7 +102,7 @@ export function formatIntellisenseBlock<T extends DeepPartial<IntellisenseConfig
 function formatDefinitionBlock(definition: DefinitionFile) {
 
     // definition.intellisense.* members
-    formatIntellisenseBlock(definition.intellisense);
+    formatIntelliSenseBlock(definition.intellisense);
 
     // definition.package.* = strings(definition.package.*);
     if (definition.package) {

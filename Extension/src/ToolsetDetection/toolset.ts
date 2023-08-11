@@ -9,13 +9,14 @@
 import { unlinkSync, writeFileSync } from 'fs';
 import { readFile } from 'fs/promises';
 import { delimiter, dirname } from 'path';
-import { Configuration } from '../LanguageServer/configurations';
 import { filepath, tmpFile } from '../Utility/Filesystem/filepath';
-import { Command, CommandFunction, cmdlineToArray } from '../Utility/Process/program';
+import { cmdlineToArray, Command, CommandFunction } from '../Utility/Process/program';
 import { is } from '../Utility/System/guards';
 import { evaluateExpression, recursiveRender, render } from '../Utility/Text/taggedLiteral';
-import { formatIntellisenseBlock } from './definition';
-import { CStandard, CppStandard, DeepPartial, DefinitionFile, FullIntellisenseConfiguration, IntelliSense, IntelliSenseConfiguration, Language, OneOrMore } from './interfaces';
+import { formatIntelliSenseBlock } from './definition';
+
+import { Configuration } from '../LanguageServer/configurations';
+import { CppStandard, CStandard, DeepPartial, DefinitionFile, FullIntellisenseConfiguration, IntelliSense, IntelliSenseConfiguration, Language, OneOrMore } from './interfaces';
 import { mergeObjects } from './objectMerge';
 import { appendUniquePath, getActions, strings } from './strings';
 
@@ -39,7 +40,7 @@ export class Toolset {
     cmd: Promise<CommandFunction>;
     rxResolver: (prefix: string, expression: string) => any;
     get default() {
-        return this.definition.intellisense as Intellisense;
+        return this.definition.intellisense as IntelliSense;
     }
 
     get version() {
@@ -76,11 +77,11 @@ export class Toolset {
         };
     }
 
-    applyToConfiguration(intellisenseConfiguration: IntellisenseConfiguration | Intellisense, partial: DeepPartial<IntellisenseConfiguration>, data: Record<string, any> = intellisenseConfiguration) {
-        mergeObjects(intellisenseConfiguration, recursiveRender(formatIntellisenseBlock(partial), data, this.resolver));
+    applyToConfiguration(intellisenseConfiguration: IntelliSenseConfiguration | IntelliSense, partial: DeepPartial<IntelliSenseConfiguration>, data: Record<string, any> = intellisenseConfiguration) {
+        mergeObjects(intellisenseConfiguration, recursiveRender(formatIntelliSenseBlock(partial), data, this.resolver));
     }
 
-    async query(command: string, queries: Record<string, DeepPartial<IntellisenseConfiguration>>, intellisenseConfiguration: IntellisenseConfiguration) {
+    async query(command: string, queries: Record<string, DeepPartial<IntelliSenseConfiguration>>, intellisenseConfiguration: IntelliSenseConfiguration) {
         // check if we've handled this command before.
         const key = render(command, {}, this.resolver);
         let text = this.cachedQueries.get(key);
@@ -198,7 +199,7 @@ export class Toolset {
         }
     }
 
-    processComamndLineArgs(block: Record<string, any>, commandLineArgs: string[], intellisenseConfiguration: IntellisenseConfiguration, flags: Map<string, any>) {
+    processComamndLineArgs(block: Record<string, any>, commandLineArgs: string[], intellisenseConfiguration: IntelliSenseConfiguration, flags: Map<string, any>) {
         // get all the regular expressions and the results to apply
         const allEngineeredRegexes: [RegExp[], any][] = Object.entries(block).map(([engineeredRx, result]) => [engineeredRx.split(';').map(rx => new RegExp(render(`^${rx}$`, {}, this.rxResolver))), result]);
         const keptArgs = new Array<string>();
