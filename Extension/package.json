@@ -6124,6 +6124,7 @@
         "test": "ts-node -T .scripts/test.ts",
         "code": "ts-node -T .scripts/code.ts",
         "verify": "ts-node -T .scripts/verify.ts",
+        "binary": "ts-node -T .scripts/binary.ts",
         "prep": "yarn copy-walkthrough-media && yarn generate-native-strings && yarn translations-generate",
         "lint": "eslint -c .eslintrc.js src test ui .scripts",
         "compile": "(yarn verify prep || yarn prep) && tsc --build tsconfig.json",

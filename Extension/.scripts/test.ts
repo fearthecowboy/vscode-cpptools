@@ -88,14 +88,15 @@ async function scenarioTests(assets: string, name: string, workspace: string) {
         extensionTestsPath: resolve($root, 'dist/test/common/selectTests'),
         launchArgs: workspace ? [...options.launchArgs, workspace] : options.launchArgs,
         extensionTestsEnv: {
-            SCENARIO: assets
+            SCENARIO: assets,
+            DONT_PROMPT_WSL_INSTALL:"1"
         }
     });
 }
 
 export async function main() {
     await checkFolder('dist/test/', `The folder '${$root}/dist/test is missing. You should run ${brightGreen("yarn compile")}\n\n`);
-    const arg = $args.find(each => !each.startsWith("--"));
+    const arg = $args[0];
     const specifiedScenario = $scenario || env.SCENARIO || await getScenarioFolder(arg);
     const testInfo = await getTestInfo(specifiedScenario);
 

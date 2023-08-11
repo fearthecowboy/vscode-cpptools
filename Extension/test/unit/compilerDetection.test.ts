@@ -16,7 +16,8 @@ import { isWindows } from '../../src/constants';
 import { when } from '../common/internal';
 
 const root = resolve(__dirname, '..', '..', '..', 'bin', 'definitions');
-const rgFromVSC = `${homedir()}/AppData/Local/Programs/Microsoft VS Code/resources/app/node_modules.asar.unpacked/@vscode/ripgrep/bin/rg.exe`;
+//const rgFromVSC = `${homedir()}/AppData/Local/Programs/Microsoft VS Code/resources/app/node_modules.asar.unpacked/@vscode/ripgrep/bin/rg.exe`;
+const rgFromVSC = '/tmp/.vscode-test/c7629e/cache/vscode-linux-x64-1.81.1/resources/app/node_modules.asar.unpacked/@vscode/ripgrep/bin/rg';
 
 const localRipgrep = existsSync (rgFromVSC) ? rgFromVSC : resolve((process.env["PATH"] ?? '').split(delimiter).find(each => existsSync(resolve(each, isWindows ? 'rg.exe' :  'rg'))) || '', isWindows ? 'rg.exe' : 'rg');
 

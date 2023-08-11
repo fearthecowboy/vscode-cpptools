@@ -22,7 +22,9 @@ export let $cmd = 'main';
 export let $scenario = '';
 
 // loop thru the args and pick out --scenario=... and remove it from the $args and set $scenario
-export const $args  = process.argv.slice(2).filter(each => !(each.startsWith('--scenario=') && ($scenario = each.substring('--scenario='.length))));
+process.argv.slice(2).filter(each => !(each.startsWith('--scenario=') && ($scenario = each.substring('--scenario='.length))));
+export const $args  = process.argv.slice(2).filter(each => !each.startsWith('--'));
+export const $switches = process.argv.slice(2).filter(each => each.startsWith('--'));
 
 /** enqueue the call to the callback function to happen on the next available tick, and return a promise to the result */
 export function then<T>(callback: () => Promise<T>|T): Promise<T> {
@@ -123,6 +125,7 @@ export async function updateFiles(files: string[], dest: string| Promise<string>
         const sourceFile = await filepath.isFile(each, $root);
         if (sourceFile) {
             const targetFile = resolve(target, each);
+            console.log(targetFile);
             await write(targetFile, await readFile(sourceFile));
         }
     }));
@@ -133,7 +136,7 @@ export async function go() {
         // loop thru the args and pick out the first non --arg and remove it from the $args and set $cmd
         for (let i = 0; i < $args.length; i++) {
             const each = $args[i];
-            if (!each.startsWith('--') && require.main.exports[each]) {
+            if (require.main.exports[each]) {
                 $cmd = each;
                 $args.splice(i, 1);
                 break;
