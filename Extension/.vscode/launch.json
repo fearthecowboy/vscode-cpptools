@@ -14,6 +14,26 @@
                 "--skip-release-notes",
                 "--disable-workspace-trust",
                 "--extensionDevelopmentPath=${workspaceFolder}",
+            ],
+            "sourceMaps": true,
+            "outFiles": [
+                "${workspaceFolder}/dist/**"
+            ],
+            // you can use a watch task as a prelaunch task and it works like you'd want it to.
+            "preLaunchTask": "watch"
+        },
+        {
+            // debugs the extension (selecting the workspace)
+            "name": "Run Extension-Select Workspace",
+            "type": "extensionHost",
+            "request": "launch",
+            "args": [
+                "--no-sandbox",
+                "--disable-updates",
+                "--skip-welcome",
+                "--skip-release-notes",
+                "--disable-workspace-trust",
+                "--extensionDevelopmentPath=${workspaceFolder}",
                 "${input:pickWorkspace}"
             ],
             "sourceMaps": true,
