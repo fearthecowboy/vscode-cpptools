@@ -10,9 +10,9 @@ import { beforeEach, describe, it } from 'mocha';
 import { Async } from '../../src/Utility/Async/constructor';
 import { sleep } from '../../src/Utility/Async/sleep';
 import { Descriptors } from '../../src/Utility/Eventing/descriptor';
-import { notify, notifyNow, on, reset, subscribe } from '../../src/Utility/Eventing/dispatcher';
+import { notify, notifyNow, reset, subscribe } from '../../src/Utility/Eventing/dispatcher';
 import { Emitter } from '../../src/Utility/Eventing/emitter';
-import { Cancelled, Continue, EventData } from '../../src/Utility/Eventing/interfaces';
+import { Cancelled, Continue } from '../../src/Utility/Eventing/interfaces';
 import { is } from '../../src/Utility/System/guards';
 
 export class SomeBase extends Emitter {
@@ -25,7 +25,7 @@ class Something extends SomeBase {
         this.descriptors.add('server', 'mysrv');
     }
 
-    // emitter declarations!
+    // emitter declarations
     readonly initialize = this.newEvent('initialize');
     readonly bump = this.newEvent('bump');
 
@@ -63,7 +63,7 @@ describe('Event Emitters', () => {
     beforeEach(() => {
         reset();
         // uncomment the following line to show debug messages in the console.
-        void on('debug', async (event: EventData) => { console.debug(event.text); });
+        // void on('debug', async (event: EventData) => { console.debug(event.text); });
     });
 
     it('try self-bound handlers', async () => {
@@ -141,12 +141,11 @@ describe('Event Emitters', () => {
         const s1 = new Something();
         const s2 = new Something();
 
+        // subscribe the handlers to events
         s1.on('initialize', () => {
             console.debug('`this init` called');
             countThisInit++;
         });
-
-        // subscribe the handlers to events
 
         await s1.init();
         await s2.init();
@@ -215,7 +214,7 @@ describe('Event Emitters', () => {
         ok(worked, 'worked should be true, because the event should have been triggered by the async constructor');
     });
 
-    it('Notifiers dont return stuff', async () => {
+    it('Notifiers don\'t return stuff', async () => {
         let count = 0;
         subscribe({
             'note': () => {
@@ -226,7 +225,7 @@ describe('Event Emitters', () => {
         notifyNow('note', Descriptors.none, 'hi there');
         notifyNow('note', Descriptors.none, 'hi there');
         notifyNow('note', Descriptors.none, 'hi there');
-        strictEqual(count, 3, 'count should be 3 -- notify now wont have to go async for any of this so far.');
+        strictEqual(count, 3, 'count should be 3 -- notify now won\'t have to go async for any of this so far.');
 
         notify('note', Descriptors.none, 'hi there');
         notify('note', Descriptors.none, 'hi there');
@@ -249,7 +248,7 @@ describe('Event Emitters', () => {
         notifyNow('note', Descriptors.none, 'note');
         notifyNow('note', Descriptors.none, 'note');
         notifyNow('note', Descriptors.none, 'note');
-        // strictEqual(count, 3, 'count should be 3 -- notify now wont have to go async for any of this so far.');
+
     });
 
 });

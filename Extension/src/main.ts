@@ -23,6 +23,7 @@ import { CppSettings } from './LanguageServer/settings';
 import { getToolsets, initialize } from './ToolsetDetection/detectToolset';
 import { logAndReturn, returns } from './Utility/Async/returns';
 import { CppTools1 } from './cppTools1';
+import { logMachineIdMappings } from './id';
 import { disposeOutputChannels, log } from './logger';
 import { PlatformInformation } from './platform';
 
@@ -223,6 +224,7 @@ function sendTelemetry(info: PlatformInformation): void {
             break;
     }
     Telemetry.logDebuggerEvent("acquisition", telemetryProperties);
+    logMachineIdMappings().catch(logAndReturn.undefined);
 }
 
 async function checkVsixCompatibility(): Promise<void> {
