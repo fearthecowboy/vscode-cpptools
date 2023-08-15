@@ -3,7 +3,6 @@
  * See 'LICENSE' in the project root for license information.
  * ------------------------------------------------------------------------------------------ */
 
-import { fail } from 'assert';
 import * as os from 'os';
 import { homedir } from 'os';
 import { basename, delimiter, resolve, sep } from 'path';
@@ -11,11 +10,10 @@ import { rcompare } from 'semver';
 import { accumulator } from '../Utility/Async/iterators';
 import { then } from '../Utility/Async/sleep';
 import { filepath, filterToFolders, pathsFromVariable } from '../Utility/Filesystem/filepath';
-import { FastFinder, initRipGrep, ripGrep } from '../Utility/Filesystem/ripgrep';
+import { FastFinder, ripGrep } from '../Utility/Filesystem/ripgrep';
 import { is } from '../Utility/System/guards';
 import { verbose } from '../Utility/Text/streams';
 import { render } from '../Utility/Text/taggedLiteral';
-import { isWindows } from '../constants';
 import { loadCompilerDefinitions, resetCompilerDefinitions, runConditions } from './definition';
 import { DefinitionFile, IntelliSense, IntelliSenseConfiguration } from './interfaces';
 import { clone } from './objectMerge';
@@ -26,7 +24,7 @@ import escapeStringRegExp = require('escape-string-regexp');
 const discoveredToolsets = new Map<string, Toolset>();
 let initialized = false;
 const inProgressCache = new Map<DefinitionFile, Promise<void>>();
-let discovering: Promise<any>|undefined;
+let discovering: Promise<any> | undefined;
 const configurationFolders = new Set<string>();
 
 function createResolver(definition: DefinitionFile, compilerPath: string) {
@@ -259,14 +257,8 @@ async function discover(compilerPath: string, definition: DefinitionFile): Promi
  * Calling this forces a reset of the compiler definitions and discovered toolsets -- ideally this shouldn't need to be called
  * more than the initial time
  */
-export async function initialize(configFolders: string[], rgPath?: string, forceReset = true) {
+export async function initialize(configFolders: string[], forceReset = true) {
     if (!initialized) {
-        rgPath = rgPath || resolve((process as any).resourcesPath, `app/node_modules.asar.unpacked/@vscode/ripgrep/bin/rg${isWindows ? '.exe' : ''}`);
-        const rg = await filepath.isExecutable(rgPath);
-        if (!rg) {
-            fail('ripgrep not found');
-        }
-        await initRipGrep(rgPath);
         initialized = true;
     }
 
