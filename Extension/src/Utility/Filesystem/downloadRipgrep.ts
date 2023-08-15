@@ -326,6 +326,7 @@ async function dl (opts: Record<string, any>) {
         if (!isWindows) {
             await util.promisify(fs.chmod)(destinationPath, '755');
         }
+        return destinationPath;
     } catch (e) {
         verbose('Deleting invalid download');
 
@@ -370,7 +371,8 @@ async function getTarget() {
 export async function downloadRipgrep() {
 
     const BIN_PATH = await mkdir(path.join(__dirname, '../../../../bin'));
-    const targetPath = resolve(BIN_PATH, 'rg');
+    const targetPath = resolve(BIN_PATH, isWindows ? 'rg.exe' : 'rg');
+
     if (await filepath.isExecutable(targetPath)) {
         return targetPath;
     }
@@ -384,7 +386,7 @@ export async function downloadRipgrep() {
         force: false
     };
     try {
-        await dl(opts);
+        return await dl(opts);
     } catch (err) {
         if (err instanceof Error){
             console.error(`Downloading ripgrep failed: ${err.stack}`);

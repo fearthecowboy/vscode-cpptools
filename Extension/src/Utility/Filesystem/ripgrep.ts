@@ -17,7 +17,7 @@ import { verbose } from '../Text/streams';
 import { downloadRipgrep } from './downloadRipgrep';
 import { filepath } from './filepath';
 
-let ripgrep: Instance<ProcessFunction> | undefined;
+let ripgrep: Instance<ProcessFunction>;
 async function setRipgrepBinaryLocation(filename: string) {
     if (!ripgrep) {
         const rg = await filepath.isExecutable(filename);
@@ -42,7 +42,8 @@ export async function autoInitializeRipGrep() {
         }
 
         // if we get here it might be because we're in a WSL or Remote vscode session,
-        // and the vscode/ripgrep package could be in the node_modules folder.
+        // and the remote host is a bit different than a local instance of vscode.
+        // The vscode/ripgrep package should be in the node_modules folder, which means we can use it to find the ripgrep binary that it has.
         // let's see if @vscode/ripgrep is installed
         try {
             // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -55,12 +56,12 @@ export async function autoInitializeRipGrep() {
         }
 
         // if we get here, ripgrep isn't installed for us and we don't appear to have the @vscode/ripgrep package
-        // we can all the downloadRipgrep function (which was ported from the @vscode/ripgrep package )
-        // this is a last resort, and should never happen in production, but could be necessary in development or CI.
+        // we can call the downloadRipgrep function (which was borrowed from the @vscode/ripgrep package)
+        // this is a last resort, and should never happen in production, but could be necessary in development or CI or unit testing.
         return setRipgrepBinaryLocation(await downloadRipgrep());
     }
 }
-const initialized = autoInitializeRipGrep();
+const initialization = autoInitializeRipGrep();
 
 export class FastFinder implements AsyncIterable<string> {
     private keepOnlyExecutables: boolean;
@@ -110,9 +111,9 @@ export class FastFinder implements AsyncIterable<string> {
         // only search if there are globs and locations to search
         if (globs.length && location.length) {
             this.pending++;
-            void initialized.then(async () => {
+            void initialization.then(async () => {
                 try {
-                    const proc = await ripgrep!(...globs.map(each => ['--glob', each]).flat(), '--max-depth', depth, '--null-data', '--no-messages', '-L', '--files', ...location.map(each => each.toString()));
+                    const proc = await ripgrep(...globs.map(each => ['--glob', each]).flat(), '--max-depth', depth, '--null-data', '--no-messages', '-L', '--files', ...location.map(each => each.toString()));
 
                     const process = proc as unknown as Instance<Process>;
                     this.processes.push(process);
@@ -163,7 +164,7 @@ function isMatch(obj: Record<string, any>): obj is RipGrepMatch {
 
 /** Calls RipGrep looking for strings */
 export async function* ripGrep(target: string, regex: string, options?: { glob?: string; binary?: boolean; encoding?: 'utf-16' | 'utf-8'; ignoreCase?: boolean }): AsyncGenerator<MatchData> {
-    await initialized;
+    await initialization;
 
     const optionalArguments = new Array<string>();
     if (options?.binary) {
@@ -179,7 +180,7 @@ export async function* ripGrep(target: string, regex: string, options?: { glob?:
         optionalArguments.push('--ignore-case');
     }
     regex = regex.replace(/\?\</g, '\?P<');
-    const proc = await ripgrep!(regex, '--null-data', '--json', '--no-messages', ...optionalArguments, target);
+    const proc = await ripgrep(regex, '--null-data', '--json', '--no-messages', ...optionalArguments, target);
     for await (const line of proc.stdio) {
         try {
             const obj = JSON.parse(line);
