@@ -5,10 +5,10 @@
 
 import { basename, delimiter, extname, join, normalize as norm, resolve } from 'path';
 
-import { fail } from 'assert';
+import { fail, ok } from 'assert';
 import { randomBytes } from 'crypto';
-import { constants, Stats } from 'fs';
-import { stat } from 'fs/promises';
+import { Stats, constants } from 'fs';
+import { mkdir as md, stat } from 'fs/promises';
 import { tmpdir } from 'os';
 import { isWindows } from '../../constants';
 import { returns } from '../Async/returns';
@@ -137,4 +137,20 @@ export class filepath {
 
 export function tmpFile(prefix = 'tmp.', suffix = '.tmp', folder = tmpdir()) {
     return join(folder, prefix + randomBytes(32).toString('hex') + suffix);
+}
+
+/** Asnyc recursively create dir if it isn't there, no error if it is there already. */
+export async function mkdir(filePath: string) {
+    const [fullPath, info] = await filepath.stats(filePath);
+    if (info) {
+        if (info.isDirectory()) {
+            return fullPath;
+        }
+        throw new Error(`Cannot create directory '${filePath}' because there is a file there.`);
+    }
+    ok(fullPath, `Cannot create directory ${filePath} because the path is invalid.`);
+
+    await md(fullPath, { recursive: true });
+    return fullPath;
+
 }

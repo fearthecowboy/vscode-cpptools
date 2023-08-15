@@ -125,7 +125,11 @@ export async function updateFiles(files: string[], dest: string | Promise<string
         const sourceFile = await filepath.isFile(each, $root);
         if (sourceFile) {
             const targetFile = prefix ? resolve(target, each.replace(prefix, '.')) : resolve(target, each);
-            await write(targetFile, await readFile(sourceFile));
+            try {
+                await write(targetFile, await readFile(sourceFile));
+            } catch (e) {
+                verbose(`Error during update of '${targetFile}' ${e} `);
+            }
         }
     }));
 }

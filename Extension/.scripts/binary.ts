@@ -18,11 +18,12 @@ export async function install(version: string) {
 
     // grab the binaries out
     let files = [] as string[];
+
     files.push(...await glob(`${extensionsDir}/${id}-${ver}*/bin/cpptools*`));
-    files.push(...await glob(`${extensionsDir}/${id}-${ver}*/bin/LLVM/**`));
     files.push(...await glob(`${extensionsDir}/${id}-${ver}*/bin/*.dll`));
     files.push(...await glob(`${extensionsDir}/${id}-${ver}*/bin/*.exe`));
 
+    files.push(...await glob(`${extensionsDir}/${id}-${ver}*/LLVM/**`));
     files.push(...await glob(`${extensionsDir}/${id}-${ver}*/debugAdapters/**`));
     files = [...new Set(files)];
     const extensionFolder = files[0].replace(/.bin.cpptools.*$/g, '');
