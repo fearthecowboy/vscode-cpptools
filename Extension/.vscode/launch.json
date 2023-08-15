@@ -3,7 +3,7 @@
     "version": "0.1.0",
     "configurations": [
         {
-            // debugs the extension (selecting the workspace)
+            // debugs the extension
             "name": "Run Extension",
             "type": "extensionHost",
             "request": "launch",
