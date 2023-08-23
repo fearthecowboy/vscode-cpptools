@@ -446,6 +446,7 @@ export class ReadWriteLineStream extends ReadableLineStream {
 
         this.writeable.on('error', (_error) => {
             /*
+            uncomment if testing :
             if ((global as any).DEVMODE && error) {
               verbose(`write-stream - error - ${error.message}`);
             }

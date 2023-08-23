@@ -2,6 +2,7 @@
   "intellisense": {
     "hostArchitecture": "${host:arch}",
   },
+  
   "conditions": {
     // example using a conditional to set the target platform based on the host platform
     "${host:os} === 'linux'":   { "intellisense.platform": "linux" },

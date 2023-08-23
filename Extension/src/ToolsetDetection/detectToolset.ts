@@ -4,121 +4,69 @@
  * ------------------------------------------------------------------------------------------ */
 
 import * as os from 'os';
-import { homedir } from 'os';
-import { basename, delimiter, resolve, sep } from 'path';
+import { basename, resolve } from 'path';
 import { rcompare } from 'semver';
+
+import { parse } from 'comment-json';
+import { readFile } from 'fs/promises';
 import { accumulator } from '../Utility/Async/iterators';
+import { ManualPromise } from '../Utility/Async/manualPromise';
 import { then } from '../Utility/Async/sleep';
 import { filepath, filterToFolders, pathsFromVariable } from '../Utility/Filesystem/filepath';
 import { FastFinder, ripGrep } from '../Utility/Filesystem/ripgrep';
 import { is } from '../Utility/System/guards';
+import { consolelog, elapsed } from '../Utility/System/performance';
 import { verbose } from '../Utility/Text/streams';
 import { render } from '../Utility/Text/taggedLiteral';
+import { isWindows } from '../constants';
 import { loadCompilerDefinitions, resetCompilerDefinitions, runConditions } from './definition';
 import { DefinitionFile, IntelliSense, IntelliSenseConfiguration } from './interfaces';
 import { clone } from './objectMerge';
+import { createResolver } from './resolver';
 import { getActions, strings } from './strings';
-import { Toolset } from './toolset';
+import { Toolset, settings, updateDiscoveredToolsets } from './toolset';
 import escapeStringRegExp = require('escape-string-regexp');
 
-const discoveredToolsets = new Map<string, Toolset>();
-let initialized = false;
-const inProgressCache = new Map<DefinitionFile, Promise<void>>();
+let initialized: ManualPromise | undefined;
+
+const discoveringInProgress = new Map<DefinitionFile, Promise<void>>();
 let discovering: Promise<any> | undefined;
 const configurationFolders = new Set<string>();
 
-function createResolver(definition: DefinitionFile, compilerPath: string) {
-    return (prefix: string, expression: string) => {
-        switch (prefix) {
-            case 'env':
-                // make sure ${env:HOME} is expanded to the user's home directory always
-                if (expression.toLowerCase() === 'home') {
-                    return homedir();
-                }
-                return process.env[expression] || '';
+const searchCache = new Map<string, Promise<Record<string, string> | undefined>>();
 
-            case 'definition':
-                return (definition as any)[expression] || '';
-
-            case 'config':
-                // get a configuration variable from vscode
-                // vscode.workspace.getConfiguration().get(expression.replace(/:/g,'.'));
-                return '';
-
-            case 'host':
-                switch (expression) {
-                    case 'os':
-                    case 'platform':
-                        return os.platform;
-
-                    case 'arch':
-                    case 'architecture':
-                        return os.arch();
-                }
-                break;
-
-            case 'compilerPath':
-                switch (expression) {
-                    case 'basename':
-                        return process.platform === 'win32' ? basename(compilerPath, '.exe') : basename(compilerPath);
-                }
-                break;
-
-            case '':
-                // todo: if they ask for a variable without a prefix, it could be a host variable -- ask vscode to resolve those
-                switch (expression) {
-                    case 'workspaceroot':
-                    case 'workspaceRoot':
-                    case 'workspaceFolder':
-                    case 'workspacefolder':
-                    case 'cwd': // ??
-                        // get it from vscode (ie: vscode.workspace.workspaceFolders[0]?.uri.fsPath || '' );
-                        return process.cwd(); // fake, this should come from the host.
-
-                    case 'pathSeparator':
-                        return sep;
-
-                    case 'pathDelimiter':
-                        return delimiter;
-
-                    case 'name':
-                        return definition.name;
-
-                    case 'binary':
-                    case 'compilerPath':
-                        return compilerPath;
-
-                    default:
-                        // if the request was looking for a value in the intellisense configuration, we'll try to resolve that
-                        if (definition.intellisense && expression in definition.intellisense) {
-                            return (definition.intellisense as any)[expression as keyof IntelliSenseConfiguration];
-                        }
-                }
-                break;
-
-            default:
-                return '';
-        }
-
-        return '';
-    };
-}
-
-async function searchInsideBinary(compilerPath: string, rx: string) {
-    for await (const match of ripGrep(compilerPath, rx, { binary: true, ignoreCase: true })) {
-        const rxResult = new RegExp(rx, 'i').exec(match.lines.text.replace(/\0/g, ''));
-        if (rxResult) {
-            return rxResult.groups || {};
-        }
+async function searchInsideBinary(compilerPath: string, rx: string | Promise<string>) {
+    if (is.promise(rx)) {
+        rx = await(rx);
     }
-    return undefined;
+    const cc = compilerPath + rx;
+    let result = searchCache.get(cc);
+
+    async function impl() {
+        for await (const match of ripGrep(compilerPath, rx as string, { binary: true, ignoreCase: true })) {
+            const rxResult = new RegExp(rx as string, 'i').exec(match.lines.text.replace(/\0/g, ''));
+            if (rxResult) {
+                return rxResult.groups || {};
+            }
+        }
+        return undefined;
+    }
+    if (!result) {
+        consolelog(`${elapsed()}Running Ripgrep for ${cc}`);
+        result = impl();
+        searchCache.set(cc, result);
+    } else {
+        consolelog(`Already got value for ${cc}`);
+    }
+    return result;
 }
 
 async function discover(compilerPath: string, definition: DefinitionFile): Promise<Toolset | undefined> {
     // normalize the path separators to be forward slashes.
     compilerPath = resolve(compilerPath);
+    consolelog(`${elapsed()} DISCOVER ${compilerPath} ${definition.name}`);
 
-    let toolset = discoveredToolsets.get(compilerPath);
+    let toolset = settings.discoveredToolsets.get(compilerPath);
     if (toolset) {
         return toolset;
     }
@@ -127,11 +75,8 @@ async function discover(compilerPath: string, definition: DefinitionFile): Promi
     // clone the definition so it can be modified without affecting the original
     definition = clone(definition);
 
-    // resolver for variables in the definition
-    const resolver = createResolver(definition, compilerPath);
-
     // create toolset object for the result.
-    toolset = new Toolset(compilerPath, definition, resolver);
+    toolset = new Toolset(compilerPath, definition);
 
     const intellisense = definition.intellisense as IntelliSense;
 
@@ -139,17 +84,19 @@ async function discover(compilerPath: string, definition: DefinitionFile): Promi
         ['match', ['optional', 'priority', 'oneof']],
         ['expression', ['oneof', 'optional', 'priority', 'folder', 'file']]
     ]);
+    consolelog(`${elapsed()} DISCOVER (REQUIREMENTS) ${compilerPath} ${definition.name}`);
     nextBlock:
     for (const { action, block, flags } of requirements) {
+        consolelog(`${elapsed()} (REQUIREMENTS ${action} ${JSON.stringify(block)}) ${compilerPath} ${definition.name}`);
         switch (action) {
             case 'match':
                 // valid flags : 'oneof', 'optional'
                 if (flags.has('oneof')) {
                     // run them in parallel, but take the first winning result in order
-                    const results = Object.entries(block).map(([rawRx, isense]) => [searchInsideBinary(compilerPath, render(rawRx, {}, resolver)), isense] as const);
-                    for (const [result, isense] of results) {
-                        if (await result) {
-                            toolset.applyToConfiguration(toolset.default, isense, result);
+                    for (const [rawRx, isense] of Object.entries(block)) {
+                        const result = await searchInsideBinary(compilerPath, render(rawRx, {}, toolset.resolver));
+                        if (result) {
+                            await toolset.applyToConfiguration(toolset.default, isense, result);
                             // first one wins, exit the block
                             // await Promise.all(results); // wait for all the results to complete?
                             continue nextBlock;
@@ -162,18 +109,16 @@ async function discover(compilerPath: string, definition: DefinitionFile): Promi
                     // if we got here, none matched, so this whole toolset is not a match
                     return;
                 } else {
-                    const results = Object.entries(block).map(([rawRx, isense]) => [searchInsideBinary(compilerPath, render(rawRx, {}, resolver)), isense] as const);
-                    for (const [result, isense] of results) {
-                        const r = await result;
+                    for (const [rawRx, isense] of Object.entries(block)) {
+                        const r = await searchInsideBinary(compilerPath, render(rawRx, {}, toolset.resolver));
                         if (r) {
-                            toolset.applyToConfiguration(toolset.default, isense, r);
+                            await toolset.applyToConfiguration(toolset.default, isense, r);
                             continue;
                         }
                         // not found, but not a problem
                         if (flags.has('optional')) {
                             continue;
                         }
-
                         // not found, and not optional, so this whole toolset is not a match
                         return;
                     }
@@ -184,11 +129,11 @@ async function discover(compilerPath: string, definition: DefinitionFile): Promi
                 // verifies that the expression is true
                 // valid flags : 'oneof', 'optional', 'priority', 'folder', 'file'
                 for (const [expr, isense] of Object.entries(block)) {
-                    const value = render(expr, {}, resolver);
+                    const value = await render(expr, {}, toolset.resolver);
                     if (value) {
                         if (flags.has('folder')) {
                             if (await filepath.isFolder(value)) {
-                                toolset.applyToConfiguration(intellisense, isense);
+                                await toolset.applyToConfiguration(intellisense, isense);
                                 if (flags.has('oneof')) {
                                     // first one wins, exit the block
                                     continue nextBlock;
@@ -208,7 +153,7 @@ async function discover(compilerPath: string, definition: DefinitionFile): Promi
 
                         if (flags.has('file')) {
                             if (await filepath.isFile(value)) {
-                                toolset.applyToConfiguration(intellisense, isense);
+                                await toolset.applyToConfiguration(intellisense, isense);
                                 if (flags.has('oneof')) {
                                     // first one wins, exit the block
                                     continue nextBlock;
@@ -228,7 +173,7 @@ async function discover(compilerPath: string, definition: DefinitionFile): Promi
                         }
 
                         // it's a truthy value, so it's a match
-                        toolset.applyToConfiguration(intellisense, isense);
+                        await toolset.applyToConfiguration(intellisense, isense);
                         if (flags.has('oneof')) {
                             // first one wins, exit the block
                             continue nextBlock;
@@ -248,8 +193,51 @@ async function discover(compilerPath: string, definition: DefinitionFile): Promi
                 break;
         }
     }
-    discoveredToolsets.set(compilerPath, toolset);
+    consolelog(`${elapsed()} DISCOVER (DONE REQUIREMENTS) ${compilerPath} ${definition.name}`);
+
+    settings.discoveredToolsets.set(compilerPath, toolset);
+    void updateDiscoveredToolsets();
+
     return toolset;
+}
+
+async function loadCachedEntries() {
+    if (!settings.globalStoragePath) {
+        return false;
+    }
+
+    const cachePath = await filepath.isFile(resolve(settings.globalStoragePath, 'detected-toolsets.json'));
+    if (!cachePath) {
+        return false;
+    }
+
+    const entries = parse(await readFile(cachePath, 'utf8')) as Record<string, any>;
+    if (!is.object(entries)) {
+        return false;
+    }
+
+    for (const [path, obj] of Object.entries(entries)) {
+        const toolset = Toolset.deserialize(obj);
+        if (toolset) {
+            consolelog(`${elapsed()} loaded cached entry for ${path} - ${toolset.name}`);
+            settings.discoveredToolsets.set(path, toolset);
+        }
+    }
+
+    // candidate: string
+    /*
+    ... consolelog(`${elapsed()} about to identify ${entries.length} cached entries`);
+    const all = [];
+    for (const [path, name] of Object.entries(entries)) {
+        const fileInfo = await filepath.info(path);
+        if (fileInfo?.isExecutable) {
+            all.push(identify(path, name));
+        }
+    }
+    await Promise.all(all);
+    consolelog(`${elapsed()} loaded cached entries`);
+    */
+    return true;
 }
 
 /**
@@ -257,33 +245,50 @@ async function discover(compilerPath: string, definition: DefinitionFile): Promi
  * Calling this forces a reset of the compiler definitions and discovered toolsets -- ideally this shouldn't need to be called
  * more than the initial time
  */
-export async function initialize(configFolders: string[], forceReset = true) {
-    if (!initialized) {
-        initialized = true;
+export async function initialize(configFolders: string[], options?: { quick?: boolean; storagePath?: string }) {
+    if (initialized) {
+        // wait for an existing initialize to complete
+        await initialized;
     }
+
+    consolelog(`${elapsed()} initializing compiler detection`);
+
+    initialized = new ManualPromise();
+
+    const forceReset = !options?.quick;
+
+    settings.globalStoragePath = options?.storagePath;
 
     if (forceReset) {
         // if initialize is called more than once, we need to reset the compiler definitions and list of discovered toolsets
-        // (forceReset should only be used with tests)
+        // (options.quick=true should only be used with tests)
         resetCompilerDefinitions();
-        discoveredToolsets.clear();
-        inProgressCache.clear();
+        settings.discoveredToolsets.clear();
+        discoveringInProgress.clear();
     }
 
     // add the configuration folders to the list of folders to scan
     configFolders.forEach(each => configurationFolders.add(each));
 
+    consolelog(`${elapsed()} Before loading cached info`);
+    await loadCachedEntries();
+    consolelog(`${elapsed()} loaded cached files`);
+
     if (forceReset) {
         // start searching now in the background if we've just reset everything
-        void getToolsets();
+        // void getToolsets();
     }
-    return discoveredToolsets;
+    initialized.resolve();
+
+    return settings.discoveredToolsets;
 }
 
 /**
  * Async scan for all compilers using the definitions (toolset.*.json) in the given folders
  * (iterate over this with `for await`)
- */
+ *
+ * UNUSED-- TARGET FOR DELETION
+ * /
 export async function* detectToolsets(): AsyncIterable<Toolset> {
     const results = accumulator<Toolset>();
     for await (const definition of loadCompilerDefinitions(configurationFolders)) {
@@ -292,6 +297,7 @@ export async function* detectToolsets(): AsyncIterable<Toolset> {
     results.complete();
     yield* results;
 }
+*/
 
 /** Returns the discovered toolsets all at once
  *
@@ -305,17 +311,20 @@ export async function getToolsets() {
         throw new Error('Compiler detection has not been initialized. Call initialize() before calling this.');
     }
 
+    // ensure that init is done
+    await initialized;
+
     // this exponentially/asychnronously searches for toolsets using the configuration folders
     for await (const definition of loadCompilerDefinitions(configurationFolders)) {
         // have we started searching with this definition yet?
-        const searching = inProgressCache.get(definition);
+        const searching = discoveringInProgress.get(definition);
 
         // yeah, we're already searching, so skip this one
         if (is.promise(searching)) {
             continue;
         }
         // nope, we haven't started searching yet, so start it now
-        inProgressCache.set(definition, then(async () => {
+        discoveringInProgress.set(definition, then(async () => {
             for await (const toolset of searchForToolsets(definition)) {
                 if (toolset) {
                     verbose(`Detected Compiler ${toolset.name}`);
@@ -324,13 +333,29 @@ export async function getToolsets() {
         }));
     }
     // wait for the inProgress searches to complete
-    discovering = Promise.all(inProgressCache.values());
+    discovering = Promise.all(discoveringInProgress.values());
 
     await discovering;
 
     // return the results
-    return discoveredToolsets;
+    return settings.discoveredToolsets;
 }
+
+function lookupToolset(name: string) {
+    // check if the candidate is a name of a toolset (* AND ? are supported)
+    const rx = new RegExp(escapeStringRegExp(name).replace(/\\\*/g, '.*'));
+
+    // iterate over the discovered toolsets starting with the highest versions
+    for (const toolset of [...settings.discoveredToolsets.values()].sort((a, b) => rcompare(a.version ?? "0.0.0", b.version ?? "0.0.0"))) {
+        // return the first match given the regex
+        if (rx.exec(toolset.name)) {
+            consolelog(`${elapsed()} found toolset ${toolset.name} for ${name}`);
+            return toolset;
+        }
+    }
+}
+
+const identifyInProgress = new Map<string, Promise<Toolset | undefined>>();
 
 /**
  * Given a path to a binary, identify the compiler
@@ -341,44 +366,72 @@ export async function identifyToolset(candidate: string): Promise<Toolset | unde
     if (!initialized) {
         throw new Error('Compiler detection has not been initialized. Call initialize() before calling this.');
     }
+
+    // quick check if the given path is already in the discovered toolsets
+    const toolset = settings.discoveredToolsets.get(candidate);
+    if (toolset) {
+        return toolset;
+    }
+
+    // check if we're already identifying this candidate
+    if (identifyInProgress.get(candidate)) {
+        return identifyInProgress.get(candidate);
+    }
+
+    // set this candidate to in-progress.
+    const promise = new ManualPromise<Toolset | undefined>();
+    identifyInProgress.set(candidate, promise);
+
+    // get file info for the candidate (is it even a file?)
     const fileInfo = await filepath.info(candidate);
 
     if (!fileInfo?.isFile) {
-        // they are passing in a non-file so we have to
-        // make sure discovery is done before looking in the cache.
-        await (is.promise(discovering) ? discovering : getToolsets());
+        // ensure that init is done
+        await initialized;
 
-        // it's not a file, but it might be a toolset name
-        // check if the candidate is a name of a toolset (* AND ? are supported)
-        const rx = new RegExp(escapeStringRegExp(candidate).replace(/\\\*/g, '.*'));
+        consolelog(`${elapsed()} looking up toolset ${candidate}`);
 
-        // iterate over the discovered toolsets starting with the highest versions
-        for (const toolset of [...discoveredToolsets.values()].sort((a, b) => rcompare(a.version ?? "0.0.0", b.version ?? "0.0.0"))) {
-
-            // return the first match given the regex
-            if (rx.exec(toolset.name)) {
-                return toolset;
-            }
+        // if it's not a file let's quickly check for a match in the discovered toolsets
+        const toolset = lookupToolset(candidate);
+        if (toolset) {
+            return toolset;
         }
 
-        // since they didn't pass in a file, and it's not a toolset name, we can't find it
-        return undefined;
+        consolelog(`${elapsed()} Didn't find entry for toolset ${candidate}`);
+        // we didn't find it, but the discovery may not be done yet, or hasn't been done.
+
+        consolelog(`${elapsed()} Checking if discovery is done`);
+        // make sure discovery is done before doing another lookup.
+        await (is.promise(discovering) ? discovering : getToolsets());
+
+        return lookupToolset(candidate);
     }
 
-    // check if the given path is already in the cache
-    const cached = discoveredToolsets.get(candidate);
-    if (cached) {
-        return cached;
+    if (fileInfo.isExecutable) {
+        // otherwise, let's use the definitions to try to identify it.
+        return identify(candidate).then((result) => {promise.resolve(result); return promise;});
     }
+    // otherwise...
+    promise.resolve(undefined);
+    return undefined;
+}
 
+async function identify(candidate: string, name?: string): Promise<Toolset | undefined> {
+    const bn = basename(candidate);
+    consolelog(`Identify ${candidate} ${name} ${bn}`);
     for await (const definition of loadCompilerDefinitions(configurationFolders)) {
-        const resolver = createResolver(definition, '');
-        runConditions(definition, resolver);
+        if (!name || definition.name === name){
+            consolelog(`${elapsed()} Checking ${candidate} against ${definition.name}`);
+            const resolver = createResolver(definition);
+            await runConditions(definition, resolver);
 
-        if (fileInfo?.isExecutable && strings(definition.discover.binary).includes(fileInfo.basename)) {
-            const toolset = await discover(candidate, definition);
-            if (toolset) {
-                return toolset;
+            if (strings(definition.discover.binary).includes(basename(bn, isWindows ? '.exe' : undefined))) {
+                consolelog(`${elapsed()} Possible Match toolset ${definition.name} for ${candidate}`);
+                const toolset = await discover(candidate, definition);
+                if (toolset) {
+                    consolelog(`${elapsed()} Loaded toolset ${toolset.name} for ${candidate}`);
+                    return toolset;
+                }
             }
         }
     }
@@ -393,8 +446,8 @@ export async function identifyToolset(candidate: string): Promise<Toolset | unde
  */
 async function* searchForToolsets(definition: DefinitionFile): AsyncIterable<Toolset | undefined> {
     // run the conditions once before we start.
-    const resolver = createResolver(definition, '');
-    runConditions(definition, resolver);
+    const resolver = createResolver(definition);
+    await runConditions(definition, resolver);
 
     // create the finder
     const finder = new FastFinder(strings(definition.discover.binary), { executable: true, executableExtensions: ['.exe'] });
@@ -403,7 +456,7 @@ async function* searchForToolsets(definition: DefinitionFile): AsyncIterable<Too
     finder.scan(...await filterToFolders(pathsFromVariable('PATH')));
 
     // add any folders that the definition specifies (expand any variables)
-    finder.scan(10, ...render(strings(definition.discover.locations), {}, resolver));
+    finder.scan(10, ...await render(strings(definition.discover.locations), {}, resolver));
 
     // add any platform folders
     switch (os.platform()) {

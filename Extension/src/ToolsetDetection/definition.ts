@@ -13,7 +13,7 @@ import { accumulator } from '../Utility/Async/iterators';
 import { AsyncMap } from '../Utility/Async/map';
 import { FastFinder } from '../Utility/Filesystem/ripgrep';
 import { is } from '../Utility/System/guards';
-import { evaluateExpression } from '../Utility/Text/taggedLiteral';
+import { CustomResolver, evaluateExpression } from '../Utility/Text/taggedLiteral';
 import { DeepPartial, DefinitionFile, IntelliSense, IntelliSenseConfiguration, PartialDefinitionFile, PkgMgr } from './interfaces';
 import { mergeObjects } from './objectMerge';
 import { strings } from './strings';
@@ -130,6 +130,7 @@ function formatDefinitionBlock(definition: DefinitionFile) {
 async function loadDefinition(definitionFile: string): Promise<DefinitionFile | undefined> {
     return compilerDefintions.getOrAdd(definitionFile, async () => {
         try {
+            console.log(`Reading ${definitionFile}`);
             const definition = parse(await readFile(definitionFile, 'utf8'));
             if (!isToolsetDefinition(definition)) {
                 console.error(`The definition file ${definitionFile} is not a valid toolset definition.`);
@@ -238,13 +239,14 @@ export async function* loadCompilerDefinitions(configurationFolders: Set<string>
     void Promise.all(all).then(() => result.complete());
 
     yield* result;
+    console.log('Done Loading');
 }
 
-export function runConditions(definition: DefinitionFile, resolver: (prefix: string, expression: string) => string): boolean {
+export async function runConditions(definition: DefinitionFile, resolver: CustomResolver): Promise<boolean> {
     let conditionsRan = false;
     if (definition.conditions) {
         for (const [expression, part] of Object.entries(definition.conditions)) {
-            if (evaluateExpression(expression, definition, resolver)) {
+            if (await evaluateExpression(expression, definition, resolver)) {
                 // the condition is true!
                 // which means something changed...
                 conditionsRan = true;
@@ -257,10 +259,9 @@ export function runConditions(definition: DefinitionFile, resolver: (prefix: str
                 formatDefinitionBlock(definition);
 
                 // we should also run the conditions again, in case the new definition has more conditions
-                runConditions(definition, resolver);
+                await runConditions(definition, resolver);
             }
         }
-
         return conditionsRan;
     }
     return false;

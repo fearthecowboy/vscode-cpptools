@@ -7,17 +7,18 @@
 /* eslint-disable prefer-const */
 
 import { unlinkSync, writeFileSync } from 'fs';
-import { readFile } from 'fs/promises';
-import { delimiter, dirname } from 'path';
-import { filepath, tmpFile } from '../Utility/Filesystem/filepath';
+import { readFile, writeFile } from 'fs/promises';
+import { delimiter, dirname, resolve } from 'path';
+import { filepath, mkdir, tmpFile } from '../Utility/Filesystem/filepath';
 import { cmdlineToArray, Command, CommandFunction } from '../Utility/Process/program';
 import { is } from '../Utility/System/guards';
-import { evaluateExpression, recursiveRender, render } from '../Utility/Text/taggedLiteral';
+import { CustomResolver, evaluateExpression, recursiveRender, render } from '../Utility/Text/taggedLiteral';
 import { formatIntelliSenseBlock } from './definition';
 
 import { Configuration } from '../LanguageServer/configurations';
 import { CppStandard, CStandard, DeepPartial, DefinitionFile, FullIntellisenseConfiguration, IntelliSense, IntelliSenseConfiguration, Language, OneOrMore } from './interfaces';
-import { mergeObjects } from './objectMerge';
+import { clone, mergeObjects } from './objectMerge';
+import { createResolver } from './resolver';
 import { appendUniquePath, getActions, strings } from './strings';
 
 function isC(language?: string): boolean {
@@ -28,6 +29,23 @@ function isCpp(language?: string): boolean {
     return language === 'cpp' || language === 'c++';
 }
 
+export let settings = {
+    globalStoragePath:  undefined as string | undefined,
+    discoveredToolsets: new Map<string, Toolset>()
+};
+
+export async function updateDiscoveredToolsets() {
+    if (settings.globalStoragePath) {
+        await mkdir(settings.globalStoragePath);
+        const contents = {} as Record<string, any>;
+        for (const [path, toolset] of settings.discoveredToolsets.entries()) {
+            contents[path] = toolset.serialize();
+        }
+
+        await writeFile(resolve(settings.globalStoragePath, 'detected-toolsets.json'), JSON.stringify(contents));
+    }
+}
+
 /**
  * The Toolset is the final results of the [discovery+query] process
  *
@@ -36,7 +54,7 @@ function isCpp(language?: string): boolean {
 export class Toolset {
     cachedQueries = new Map<string, string>();
     cachedAnalysis = new Map<string, FullIntellisenseConfiguration>();
-
+    resolver: CustomResolver;
     cmd: Promise<CommandFunction>;
     rxResolver: (prefix: string, expression: string) => any;
     get default() {
@@ -51,11 +69,34 @@ export class Toolset {
         return `${this.definition.name}/${this.version}/${this.default.architecture}/${this.default.hostArchitecture || process.arch}`;
     }
 
-    constructor(readonly compilerPath: string, readonly definition: DefinitionFile, private resolver: (prefix: string, expression: string) => any) {
+    serialize() {
+        return {
+            name: this.name,
+            compilerPath: this.compilerPath,
+            definition: this.definition,
+            queries: [...this.cachedQueries.entries()],
+            analysis: [...this.cachedAnalysis.entries()]
+        };
+    }
+
+    static deserialize(obj: Record<string, any>) {
+        try {
+            const { compilerPath, definition, queries, analysis } = obj;
+            const result = new Toolset(compilerPath, definition);
+            result.cachedQueries = new Map(queries);
+            result.cachedAnalysis = new Map(analysis);
+            return result;
+        } catch {
+            return undefined;
+        }
+    }
+
+    constructor(readonly compilerPath: string, readonly definition: DefinitionFile) {
+        this.resolver = createResolver(definition, compilerPath);
         this.definition.intellisense = this.definition.intellisense || {};
         this.cmd = new Command(this.compilerPath, { env: { PATH: `${dirname(this.compilerPath)}${delimiter}${process.env.PATH}` } });
 
-        this.rxResolver = (prefix: string, expression: string) => {
+        this.rxResolver = async (prefix: string, expression: string) => {
             if (!prefix) {
                 switch (expression.toLowerCase()) {
                     case '-/':
@@ -77,13 +118,13 @@ export class Toolset {
         };
     }
 
-    applyToConfiguration(intellisenseConfiguration: IntelliSenseConfiguration | IntelliSense, partial: DeepPartial<IntelliSenseConfiguration>, data: Record<string, any> = intellisenseConfiguration) {
-        mergeObjects(intellisenseConfiguration, recursiveRender(formatIntelliSenseBlock(partial), data, this.resolver));
+    async applyToConfiguration(intellisenseConfiguration: IntelliSenseConfiguration | IntelliSense, partial: DeepPartial<IntelliSenseConfiguration>, data: Record<string, any> = intellisenseConfiguration) {
+        mergeObjects(intellisenseConfiguration, await recursiveRender(formatIntelliSenseBlock(partial), data, this.resolver));
     }
 
     async query(command: string, queries: Record<string, DeepPartial<IntelliSenseConfiguration>>, intellisenseConfiguration: IntelliSenseConfiguration) {
         // check if we've handled this command before.
-        const key = render(command, {}, this.resolver);
+        const key = await render(command, {}, this.resolver);
         let text = this.cachedQueries.get(key);
 
         if (!text) {
@@ -93,7 +134,7 @@ export class Toolset {
             let stdout = '';
             let stderr = '';
 
-            const commandLine = render(command, {}, (prefix, expression) => {
+            const commandLine = await render(command, {}, async (prefix, expression) => {
                 if (prefix === 'tmp') {
                     // creating temp files
                     const tmp = tmpFile('tmp.', `.${expression}`);
@@ -127,6 +168,9 @@ export class Toolset {
 
             // remove the temp files
             tmpFiles.forEach(each => unlinkSync(each));
+
+            this.cachedQueries.set(key, text);
+            void updateDiscoveredToolsets();
         }
 
         // now we can process the queries
@@ -144,7 +188,7 @@ export class Toolset {
                                 value;
                         }
 
-                        this.applyToConfiguration(intellisenseConfiguration, isense, data);
+                        await this.applyToConfiguration(intellisenseConfiguration, isense, data);
                     }
                 }
             }
@@ -199,9 +243,18 @@ export class Toolset {
         }
     }
 
-    processComamndLineArgs(block: Record<string, any>, commandLineArgs: string[], intellisenseConfiguration: IntelliSenseConfiguration, flags: Map<string, any>) {
+    async processComamndLineArgs(block: Record<string, any>, commandLineArgs: string[], intellisenseConfiguration: IntelliSenseConfiguration, flags: Map<string, any>) {
         // get all the regular expressions and the results to apply
-        const allEngineeredRegexes: [RegExp[], any][] = Object.entries(block).map(([engineeredRx, result]) => [engineeredRx.split(';').map(rx => new RegExp(render(`^${rx}$`, {}, this.rxResolver))), result]);
+        let allEngineeredRegexes: [RegExp[], any][] = [];
+        for (const [engineeredRx, result] of Object.entries(block)) {
+            const rxes: RegExp[] = [];
+            for (const rx of engineeredRx.split(';')) {
+                rxes.push(new RegExp(await render(`^${rx}$`, {}, this.rxResolver)));
+
+            }
+            allEngineeredRegexes.push([rxes, result]);
+        }
+        // const allEngineeredRegexes: [RegExp[], any][] = Object.entries(block).map(([engineeredRx, result]) => [engineeredRx.split(';').map(async rx => new RegExp(await render(`^${rx}$`, {}, this.rxResolver))), result]);
         const keptArgs = new Array<string>();
 
         nextArg:
@@ -222,7 +275,7 @@ export class Toolset {
                     }
                 }
                 // now we can apply the results to the intellisenseConfiguration
-                this.applyToConfiguration(intellisenseConfiguration, isense, capturedData);
+                await this.applyToConfiguration(intellisenseConfiguration, isense, capturedData);
 
                 // remove the args used from the command line
                 const usedArgs = commandLineArgs.splice(0, engineeredRegexSet.length);
@@ -282,11 +335,6 @@ export class Toolset {
         // cStandard
         // cppStandard
 
-        // compilerArgs
-        // if (configuration.compilerArgs) {
-        // intellisense.compilerArgs.push(...configuration.compilerArgs);
-        //}
-
         // defines
         for (const define of configuration.defines || []) {
             const [,key, value] = /^([^=]+)=*(.*)?$/.exec(define) ?? [];
@@ -308,7 +356,7 @@ export class Toolset {
         if (intellisenseConfiguration) {
             // after getting the cached results, merge in user settings (which are not cached here)
             if (options?.userIntellisenseConfiguration) {
-                this.applyToConfiguration(intellisenseConfiguration, options.userIntellisenseConfiguration);
+                await this.applyToConfiguration(intellisenseConfiguration, options.userIntellisenseConfiguration);
 
                 // before we go, let's make sure that any *paths are unique, and that they are all absolute
                 await this.ensurePathsAreLegit(intellisenseConfiguration);
@@ -350,7 +398,7 @@ export class Toolset {
                         break;
 
                     case 'command':
-                        compilerArgs = this.processComamndLineArgs(block, compilerArgs, intellisenseConfiguration, flags);
+                        compilerArgs = await this.processComamndLineArgs(block, compilerArgs, intellisenseConfiguration, flags);
                         break;
 
                     case 'quer':
@@ -361,8 +409,8 @@ export class Toolset {
 
                     case 'expression':
                         for (const [expr, isense] of Object.entries(block as Record<string, DeepPartial<IntelliSenseConfiguration>>)) {
-                            if (evaluateExpression(expr, intellisenseConfiguration, this.resolver)) {
-                                this.applyToConfiguration(intellisenseConfiguration, isense);
+                            if (await evaluateExpression(expr, intellisenseConfiguration, this.resolver)) {
+                                await this.applyToConfiguration(intellisenseConfiguration, isense);
                             }
                         }
                         break;
@@ -375,14 +423,17 @@ export class Toolset {
         await this.ensurePathsAreLegit(intellisenseConfiguration);
 
         // render any variables that are left (if therer are value that are specified explicity in definition that reference variables, this is when they get resolved)
-        intellisenseConfiguration = recursiveRender(intellisenseConfiguration, intellisenseConfiguration, this.resolver);
+        intellisenseConfiguration = await recursiveRender(intellisenseConfiguration, intellisenseConfiguration, this.resolver);
 
         // cache the results
         this.cachedAnalysis.set(compilerArgs.join(' '), intellisenseConfiguration);
+        void updateDiscoveredToolsets();
+
+        intellisenseConfiguration = clone(intellisenseConfiguration);
 
         // after the cached results, merge in user settings (since the user can change those at any time)
         if (options?.userIntellisenseConfiguration) {
-            this.applyToConfiguration(intellisenseConfiguration, options.userIntellisenseConfiguration);
+            await this.applyToConfiguration(intellisenseConfiguration, options.userIntellisenseConfiguration);
 
             // before we go, let's make sure that any *paths are unique, and that they are all absolute
             await this.ensurePathsAreLegit(intellisenseConfiguration);
@@ -406,8 +457,10 @@ export class Toolset {
         // generate the two sets of include paths that EDG supports:
         // --inlcude_directory and --sys_include
         for (const each of intellisense.include?.builtInPaths ?? []) {
-            args.push('--sys_include', each);
+            // alt : args.push('--sys_include', each);
+            args.push(`-I${each}`);
         }
+
         for (const each of intellisense.include?.systemPaths ?? []) {
             args.push('--sys_include', each);
         }
@@ -425,5 +478,4 @@ export class Toolset {
             intellisense.parserArguments.push(...args);
         }
     }
-
 }

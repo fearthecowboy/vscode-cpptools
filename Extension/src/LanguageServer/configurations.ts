@@ -910,6 +910,12 @@ export class CppProperties {
         const env: Environment = this.ExtendedEnvironment;
         for (let i: number = 0; i < this.configurationJson.configurations.length; i++) {
             const configuration: Configuration = this.configurationJson.configurations[i];
+
+            if (configuration.compiler) {
+                // we are going to skip all the magic when it's a new intellisense config
+                continue;
+            }
+
             configuration.compilerPathInCppPropertiesJson = configuration.compilerPath;
             configuration.compileCommandsInCppPropertiesJson = configuration.compileCommands;
             configuration.configurationProviderInCppPropertiesJson = configuration.configurationProvider;

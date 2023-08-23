@@ -96,7 +96,7 @@ export async function uninstallExtension(name: string) {
 }
 
 export async function extensions() {
-    // eslint-disable-next-line prefer-const
+    // eslint-disable-next-line prefer-const, @typescript-eslint/no-unused-vars
     let {cli, args} = await install();
 }
 

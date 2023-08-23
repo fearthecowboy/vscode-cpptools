@@ -90,7 +90,6 @@ export type CompilerVariant = 'msvc' | 'clang' | 'gcc';
 export interface Discover {
     binary: OneOrMore<RegularExpression>;
     locations?: OneOrMore<string>;
-    // requirements?: Record<string, OneOrMore<Match|Folder|File|Rx>>;
 
     /** 'match' examines the binary file itself to search for strings via regex */
     [key: `match:${string}`]: Record<RegularExpression, any>;

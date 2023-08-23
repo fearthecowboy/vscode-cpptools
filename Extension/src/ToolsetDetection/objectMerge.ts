@@ -6,7 +6,7 @@
 import { is } from '../Utility/System/guards';
 import { strings } from './strings';
 
-export function clone(value: any): any {
+export function clone<T>(value: T): T {
     return value ? JSON.parse(JSON.stringify(value)) : value;
 }
 
@@ -31,6 +31,10 @@ function expandArray(value: any): any {
 
 export function mergeObjects<T extends Record<string, any>>(input: T, dataToMerge: Record<string, any>): T {
     const target: any = input;
+
+    if (is.promise(input) || is.promise(dataToMerge)) {
+        throw new Error('Should not get promises here!');
+    }
 
     if (isMergeble(target) && isMergeble(dataToMerge)) {
         for (let [key, value] of Object.entries(dataToMerge)) {

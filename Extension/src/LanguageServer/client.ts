@@ -37,6 +37,7 @@ import { ManualPromise } from '../Utility/Async/manualPromise';
 import { ManualSignal } from '../Utility/Async/manualSignal';
 import { logAndReturn, returns } from '../Utility/Async/returns';
 import { is } from '../Utility/System/guards';
+import { consolelog, elapsed } from '../Utility/System/performance';
 import * as util from '../common';
 import { DebugProtocolParams, Logger, ShowWarningParams, getDiagnosticsChannel, getOutputChannelLogger, logDebugProtocol, logLocalized, showWarning } from '../logger';
 import { localizedStringCount, lookupString } from '../nativeStrings';
@@ -3004,24 +3005,30 @@ export class DefaultClient implements Client {
             } else {
                 modifiedConfig.compilerArgs = compilerPathAndArgs.allCompilerArgs;
             }
+
+            consolelog(`${elapsed()} OnConfigurationsChange`);
             // temporary measure -
             // if there is an `.compiler` member present
             // then let's ask for the the toolset configuration for that.
             if (is.string(modifiedConfig.compiler))  {
                 try {
+                    consolelog(`${elapsed()} Before Identify Toolset`);
                     const toolset = await identifyToolset(modifiedConfig.compiler);
+                    consolelog(`${elapsed()} After Identify Toolset`);
                     if (toolset) {
+                        consolelog(`${elapsed()} Before getIntellisense`);
                         const intellisense = await toolset.getIntellisenseConfiguration(modifiedConfig.compilerArgs ?? [], is.object(modifiedConfig.intellisense) ? modifiedConfig.intellisense : {});
+                        consolelog(`${elapsed()} After getIntellisense`);
                         modifiedConfig.intellisense = toolset.harvestFromConfiguration(modifiedConfig, intellisense);
                     }
                 } catch (e) {
                     console.log(`Unable to identify toolset from compilerPath: ${modifiedConfig.compiler} - ${e}`);
                 }
-                console.log(JSON.stringify(modifiedConfig, null, 2));
+                consolelog(JSON.stringify(modifiedConfig, null, 2));
             }
             params.configurations.push(modifiedConfig);
         }
-
+        consolelog(`${elapsed()} ========= SENDING CONFIGS =========`);
         // otherwise fall back to the orig
         await this.languageClient.sendRequest(ChangeCppPropertiesRequest, params);
         if (!!this.lastCustomBrowseConfigurationProviderId && !!this.lastCustomBrowseConfiguration && !!this.lastCustomBrowseConfigurationProviderVersion) {

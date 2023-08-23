@@ -71,7 +71,7 @@ export class filepath {
         return [name, await stat(name).catch(returns.undefined)];
     }
 
-    static async info(name: string | undefined | Promise<string | undefined>, baseFolder?: string, executableExtensions: Set<string> = process.platform === 'win32' ? new Set(['.exe'/* ,'.cmd','.bat' */]) : new Set()): Promise<undefined | File | Folder> {
+    static async info(name: string | undefined | Promise<string | undefined>, baseFolder?: string, executableExtensions: Set<string> = process.platform === 'win32' ? new Set(['.exe']) : new Set()): Promise<undefined | File | Folder> {
         const [fullPath, stats] = await filepath.stats(name, baseFolder);
         if (!stats) {
             return undefined;

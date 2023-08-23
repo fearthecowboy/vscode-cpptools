@@ -21,7 +21,7 @@ export function strings(input: OneOrMore<string> | undefined | Set<string> | (st
 }
 
 /** pushes one or more paths to the array if they aren't in there already. */
-export function appendUniquePath(collection: string[]|Set<string>, elements: (string|undefined)[]|string|undefined) {
+export function appendUniquePath(collection: string[] | Set<string>, elements: (string | undefined)[] | string | undefined) {
     if (!elements) {
         return collection;
     }
