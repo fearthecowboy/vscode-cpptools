@@ -152,5 +152,4 @@ export async function mkdir(filePath: string) {
 
     await md(fullPath, { recursive: true });
     return fullPath;
-
 }

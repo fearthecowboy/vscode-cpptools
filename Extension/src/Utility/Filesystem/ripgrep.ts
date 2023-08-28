@@ -12,7 +12,6 @@ import { isWindows } from '../../constants';
 import { accumulator } from '../Async/iterators';
 import { Process } from '../Process/process';
 import { ProcessFunction, Program } from '../Process/program';
-import { consolelog, elapsed } from '../System/performance';
 import { Instance } from '../System/types';
 import { verbose } from '../Text/streams';
 import { downloadRipgrep } from './downloadRipgrep';
@@ -179,7 +178,6 @@ export async function* ripGrep(target: string, regex: string, options?: { glob?:
         optionalArguments.push('--ignore-case');
     }
     regex = regex.replace(/\?\</g, '\?P<');
-    consolelog(`${elapsed()} rg ${regex} --null-data --json --no-messages ${optionalArguments.join(' ')} ${target}`);
     const proc = await ripgrep(regex, '--null-data', '--json', '--no-messages', ...optionalArguments, target);
 
     for await (const line of proc.stdio) {

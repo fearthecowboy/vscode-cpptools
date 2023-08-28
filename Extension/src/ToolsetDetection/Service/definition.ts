@@ -9,12 +9,12 @@
 import { parse as parseJson } from 'comment-json';
 import { readFile } from 'fs/promises';
 import { dirname, resolve } from 'path';
-import { accumulator } from '../Utility/Async/iterators';
-import { AsyncMap } from '../Utility/Async/map';
-import { FastFinder } from '../Utility/Filesystem/ripgrep';
-import { is } from '../Utility/System/guards';
-import { CustomResolver, evaluateExpression } from '../Utility/Text/taggedLiteral';
-import { DeepPartial, DefinitionFile, IntelliSense, IntelliSenseConfiguration, PartialDefinitionFile, PkgMgr } from './interfaces';
+import { accumulator } from '../../Utility/Async/iterators';
+import { AsyncMap } from '../../Utility/Async/map';
+import { FastFinder } from '../../Utility/Filesystem/ripgrep';
+import { is } from '../../Utility/System/guards';
+import { CustomResolver, evaluateExpression } from '../../Utility/Text/taggedLiteral';
+import { DeepPartial, DefinitionFile, IntelliSense, IntelliSenseConfiguration, PartialDefinitionFile, PkgMgr } from '../interfaces';
 import { mergeObjects } from './objectMerge';
 import { strings } from './strings';
 
@@ -130,7 +130,6 @@ function formatDefinitionBlock(definition: DefinitionFile) {
 async function loadDefinition(definitionFile: string): Promise<DefinitionFile | undefined> {
     return compilerDefintions.getOrAdd(definitionFile, async () => {
         try {
-            console.log(`Reading ${definitionFile}`);
             const definition = parse(await readFile(definitionFile, 'utf8'));
             if (!isToolsetDefinition(definition)) {
                 console.error(`The definition file ${definitionFile} is not a valid toolset definition.`);
@@ -239,7 +238,6 @@ export async function* loadCompilerDefinitions(configurationFolders: Set<string>
     void Promise.all(all).then(() => result.complete());
 
     yield* result;
-    console.log('Done Loading');
 }
 
 export async function runConditions(definition: DefinitionFile, resolver: CustomResolver): Promise<boolean> {

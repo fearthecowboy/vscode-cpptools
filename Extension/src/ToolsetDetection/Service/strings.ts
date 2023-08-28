@@ -4,8 +4,8 @@
  * ------------------------------------------------------------------------------------------ */
 
 import { normalize } from 'path';
-import { is } from '../Utility/System/guards';
-import { OneOrMore } from './interfaces';
+import { is } from '../../Utility/System/guards';
+import { OneOrMore } from '../interfaces';
 
 export function strings(input: OneOrMore<string> | undefined | Set<string> | (string | undefined)[]): string[] {
     if (!input) {

@@ -12,4 +12,4 @@ export const isMacOS = OperatingSystem === 'darwin';
 export const isLinux = OperatingSystem === 'linux';
 
 // if you want to see the output of verbose logging, set this to true.
-export const verboseEnabled = !!process.env.VERBOSE;
+export const verboseEnabled = false;

@@ -3,12 +3,9 @@
  * See 'LICENSE' in the project root for license information.
  * ------------------------------------------------------------------------------------------ */
 
-import { is } from '../Utility/System/guards';
+import { is } from '../../Utility/System/guards';
+import { structuredClone } from '../../Utility/System/structuredClone';
 import { strings } from './strings';
-
-export function clone<T>(value: T): T {
-    return value ? JSON.parse(JSON.stringify(value)) : value;
-}
 
 function isMergeble(item: any): boolean {
     return item !== null && typeof item === 'object' && !is.array(item);
@@ -60,7 +57,7 @@ export function mergeObjects<T extends Record<string, any>>(input: T, dataToMerg
 
             // if there isn't a target value, just assign a copy of the source value
             if (target[key] === undefined) {
-                target[key] = clone(value);
+                target[key] = structuredClone(value);
                 continue;
             }
 

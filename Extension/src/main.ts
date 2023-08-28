@@ -20,7 +20,7 @@ import { CppBuildTaskProvider, cppBuildTaskProvider } from './LanguageServer/cpp
 import { getLocaleId, getLocalizedHtmlPath } from './LanguageServer/localization';
 import { PersistentState } from './LanguageServer/persistentState';
 import { CppSettings } from './LanguageServer/settings';
-import { initialize } from './ToolsetDetection/detectToolset';
+import { initialize } from './ToolsetDetection/toolset';
 import { logAndReturn, returns } from './Utility/Async/returns';
 import { CppTools1 } from './cppTools1';
 import { logMachineIdMappings } from './id';
@@ -58,16 +58,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<CppToo
     vscode.workspace.registerTextDocumentContentProvider('cpptools-schema', new SchemaProvider());
 
     // initialize the toolset detection
-    await initialize([util.getExtensionFilePath("bin/definitions")], {storagePath: context.globalStorageUri.fsPath});
-    /** * .then(async () => {
 
-        // actually do the detection of toolsets (not currently cached on disk)
-        const toolsets = await getToolsets();
-        for (const [k, v] of toolsets) {
-            console.log(`${k} :: ${v.name}\n\n`);
-        }
-    }).catch(logAndReturn.undefined);
- */
+    void initialize([util.getExtensionFilePath("bin/definitions")], {storagePath: context.globalStorageUri.fsPath});
+
     // Initialize the DebuggerExtension and register the related commands and providers.
     await DebuggerExtension.initialize(context);
 
@@ -158,7 +151,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<CppToo
         // the message on old Macs that we've already displayed a warning for.
         log(localize("intellisense.disabled", "intelliSenseEngine is disabled"));
     }
-
     return cppTools;
 }
 

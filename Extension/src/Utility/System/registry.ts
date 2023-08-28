@@ -6,7 +6,7 @@
 import { normalize } from 'path';
 import { isWindows } from '../../constants';
 import { Command, CommandFunction } from '../Process/program';
-import { elapsed } from './performance';
+import { Cache } from './cache';
 
 let powerShell: CommandFunction;
 
@@ -23,6 +23,8 @@ interface RegKey {
     children: string[];
 }
 
+const regKeyCache = new Cache<RegKey>(1000 * 60 * 5); // 5 minute cache
+
 /**
  * Returns a RegKey containing the registry data from the given hive and path
  *
@@ -36,6 +38,11 @@ export async function readKey(hive: string, path: string): Promise<RegKey | unde
     if (!isWindows) {
         // registry is only available on windows
         return undefined;
+    }
+    const cacheKey = `${hive}:${path}`;
+    const result = regKeyCache.get(cacheKey);
+    if (result) {
+        return result;
     }
 
     try {
@@ -60,7 +67,6 @@ export async function readKey(hive: string, path: string): Promise<RegKey | unde
 
         // ensure that the command is initialized
         await initialized;
-        console.log(`${elapsed()} Reading registry key ${hive}:${path}`);
 
         // shell out to powershell to get the registry data
         const data = await powerShell(`
@@ -91,14 +97,14 @@ export async function readKey(hive: string, path: string): Promise<RegKey | unde
         const queried = JSON.parse(data.stdio.all().join('')) as QueryResults;
 
         // return the data in a more usable format
-        return {
+        return regKeyCache.set(cacheKey, {
             children: queried.subKeys,
             properties: Object.entries(queried.values).reduce((result, [key, value]) => {
                 result[key] = value.type === 'binary' ? Buffer.from(value.data) : value.data;
                 return result;
             }, {} as RegistryProperties)
-        };
-    } catch {
+        });
+    } catch  {
         // failures will always return undefined
         return undefined;
     }

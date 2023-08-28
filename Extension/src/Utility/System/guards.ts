@@ -21,6 +21,10 @@ export class is {
         return false;
     }
 
+    static numeric(node: any): node is number {
+        return typeof node === 'number' && !isNaN(node) && isFinite(node);
+    }
+
     static object(node: any): node is Record<string, any> {
         return typeof node === 'object' && node !== null && !is.array(node);
     }

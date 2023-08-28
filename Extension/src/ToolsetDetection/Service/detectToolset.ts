@@ -9,19 +9,20 @@ import { rcompare } from 'semver';
 
 import { parse } from 'comment-json';
 import { readFile } from 'fs/promises';
-import { accumulator } from '../Utility/Async/iterators';
-import { ManualPromise } from '../Utility/Async/manualPromise';
-import { then } from '../Utility/Async/sleep';
-import { filepath, filterToFolders, pathsFromVariable } from '../Utility/Filesystem/filepath';
-import { FastFinder, ripGrep } from '../Utility/Filesystem/ripgrep';
-import { is } from '../Utility/System/guards';
-import { consolelog, elapsed } from '../Utility/System/performance';
-import { verbose } from '../Utility/Text/streams';
-import { render } from '../Utility/Text/taggedLiteral';
-import { isWindows } from '../constants';
+import { accumulator } from '../../Utility/Async/iterators';
+import { ManualPromise } from '../../Utility/Async/manualPromise';
+import { sleep, then } from '../../Utility/Async/sleep';
+import { filepath, filterToFolders, pathsFromVariable } from '../../Utility/Filesystem/filepath';
+import { FastFinder, ripGrep } from '../../Utility/Filesystem/ripgrep';
+
+import { Cache } from '../../Utility/System/cache';
+import { is } from '../../Utility/System/guards';
+import { structuredClone } from '../../Utility/System/structuredClone';
+import { verbose } from '../../Utility/Text/streams';
+import { render } from '../../Utility/Text/taggedLiteral';
+import { isWindows } from '../../constants';
+import { DefinitionFile, IntelliSense, IntelliSenseConfiguration } from '../interfaces';
 import { loadCompilerDefinitions, resetCompilerDefinitions, runConditions } from './definition';
-import { DefinitionFile, IntelliSense, IntelliSenseConfiguration } from './interfaces';
-import { clone } from './objectMerge';
 import { createResolver } from './resolver';
 import { getActions, strings } from './strings';
 import { Toolset, settings, updateDiscoveredToolsets } from './toolset';
@@ -33,16 +34,12 @@ const discoveringInProgress = new Map<DefinitionFile, Promise<void>>();
 let discovering: Promise<any> | undefined;
 const configurationFolders = new Set<string>();
 
-const searchCache = new Map<string, Promise<Record<string, string> | undefined>>();
-
+const cache = new Cache<Record<string, string>>();
 async function searchInsideBinary(compilerPath: string, rx: string | Promise<string>) {
     if (is.promise(rx)) {
         rx = await(rx);
     }
-    const cc = compilerPath + rx;
-    let result = searchCache.get(cc);
-
-    async function impl() {
+    return cache.getOrAdd(compilerPath + rx, async () => {
         for await (const match of ripGrep(compilerPath, rx as string, { binary: true, ignoreCase: true })) {
             const rxResult = new RegExp(rx as string, 'i').exec(match.lines.text.replace(/\0/g, ''));
             if (rxResult) {
@@ -50,21 +47,12 @@ async function searchInsideBinary(compilerPath: string, rx: string | Promise<str
             }
         }
         return undefined;
-    }
-    if (!result) {
-        consolelog(`${elapsed()}Running Ripgrep for ${cc}`);
-        result = impl();
-        searchCache.set(cc, result);
-    } else {
-        consolelog(`Already got value for ${cc}`);
-    }
-    return result;
+    });
 }
 
 async function discover(compilerPath: string, definition: DefinitionFile): Promise<Toolset | undefined> {
     // normalize the path separators to be forward slashes.
     compilerPath = resolve(compilerPath);
-    consolelog(`${elapsed()} DISCOVER ${compilerPath} ${definition.name}`);
 
     let toolset = settings.discoveredToolsets.get(compilerPath);
     if (toolset) {
@@ -73,7 +61,7 @@ async function discover(compilerPath: string, definition: DefinitionFile): Promi
     // toolset was not previously discovered for this binary, so, discover it now.
 
     // clone the definition so it can be modified without affecting the original
-    definition = clone(definition);
+    definition = structuredClone(definition);
 
     // create toolset object for the result.
     toolset = new Toolset(compilerPath, definition);
@@ -84,10 +72,8 @@ async function discover(compilerPath: string, definition: DefinitionFile): Promi
         ['match', ['optional', 'priority', 'oneof']],
         ['expression', ['oneof', 'optional', 'priority', 'folder', 'file']]
     ]);
-    consolelog(`${elapsed()} DISCOVER (REQUIREMENTS) ${compilerPath} ${definition.name}`);
     nextBlock:
     for (const { action, block, flags } of requirements) {
-        consolelog(`${elapsed()} (REQUIREMENTS ${action} ${JSON.stringify(block)}) ${compilerPath} ${definition.name}`);
         switch (action) {
             case 'match':
                 // valid flags : 'oneof', 'optional'
@@ -193,7 +179,6 @@ async function discover(compilerPath: string, definition: DefinitionFile): Promi
                 break;
         }
     }
-    consolelog(`${elapsed()} DISCOVER (DONE REQUIREMENTS) ${compilerPath} ${definition.name}`);
 
     settings.discoveredToolsets.set(compilerPath, toolset);
     void updateDiscoveredToolsets();
@@ -210,34 +195,34 @@ async function loadCachedEntries() {
     if (!cachePath) {
         return false;
     }
-
-    const entries = parse(await readFile(cachePath, 'utf8')) as Record<string, any>;
-    if (!is.object(entries)) {
-        return false;
-    }
-
-    for (const [path, obj] of Object.entries(entries)) {
-        const toolset = Toolset.deserialize(obj);
-        if (toolset) {
-            consolelog(`${elapsed()} loaded cached entry for ${path} - ${toolset.name}`);
-            settings.discoveredToolsets.set(path, toolset);
+    try {
+        const entries = parse(await readFile(cachePath, 'utf8')) as Record<string, any>;
+        if (!is.object(entries)) {
+            return false;
         }
-    }
 
-    // candidate: string
-    /*
-    ... consolelog(`${elapsed()} about to identify ${entries.length} cached entries`);
-    const all = [];
-    for (const [path, name] of Object.entries(entries)) {
-        const fileInfo = await filepath.info(path);
-        if (fileInfo?.isExecutable) {
-            all.push(identify(path, name));
+        for (const [path, obj] of Object.entries(entries)) {
+            const toolset = Toolset.deserialize(obj);
+            if (toolset) {
+                settings.discoveredToolsets.set(path, toolset);
+            }
         }
+    } catch  {
+        // ignore deserialization failures
     }
-    await Promise.all(all);
-    consolelog(`${elapsed()} loaded cached entries`);
-    */
     return true;
+}
+
+async function getWellKnownBinariesFromPath() {
+    // create the finder
+    const finder = new FastFinder(['cl'], { executable: true, executableExtensions: ['.exe'] });
+
+    // start scanning the folders in the $PATH
+    finder.scan(...await filterToFolders(pathsFromVariable('PATH')));
+
+    for await (const compilerPath of finder) {
+        await identify(compilerPath);
+    }
 }
 
 /**
@@ -250,8 +235,6 @@ export async function initialize(configFolders: string[], options?: { quick?: bo
         // wait for an existing initialize to complete
         await initialized;
     }
-
-    consolelog(`${elapsed()} initializing compiler detection`);
 
     initialized = new ManualPromise();
 
@@ -270,16 +253,28 @@ export async function initialize(configFolders: string[], options?: { quick?: bo
     // add the configuration folders to the list of folders to scan
     configFolders.forEach(each => configurationFolders.add(each));
 
-    consolelog(`${elapsed()} Before loading cached info`);
     await loadCachedEntries();
-    consolelog(`${elapsed()} loaded cached files`);
-
-    if (forceReset) {
-        // start searching now in the background if we've just reset everything
-        // void getToolsets();
+    // if we have zero entries, then we're going to prioritize finding well known compilers on the PATH.
+    if (settings.discoveredToolsets.size === 0) {
+        try {
+            await getWellKnownBinariesFromPath();
+        } catch {
+            // ignore any failures during this process
+        }
     }
+
     initialized.resolve();
 
+    // find the well-known compilers on the path
+
+    if (forceReset) {
+        // we kick off the discovery in the background but we wait
+        // a few seconds to give the intelliSense engine an opportunity to start up
+        // and perhaps get a few requests for previously discovered toolsets.
+        // but we really do want to start the discovery so that it's in progress in the background
+        // for the next time it's needed.
+        void sleep(5000).then(() => getToolsets());
+    }
     return settings.discoveredToolsets;
 }
 
@@ -342,6 +337,21 @@ export async function getToolsets() {
 }
 
 function lookupToolset(name: string) {
+    // simple lookup first
+    const result = settings.discoveredToolsets.get(name);
+    if (result) {
+        return result;
+    }
+
+    // if the name isn't wildcarded, and it's not a full path, then we just look at the filenames
+    if (name.match(/[\\\/*?]/) === null) {
+        for (const toolset of settings.discoveredToolsets.values()) {
+            if (name === basename(toolset.compilerPath)) {
+                return toolset;
+            }
+        }
+    }
+
     // check if the candidate is a name of a toolset (* AND ? are supported)
     const rx = new RegExp(escapeStringRegExp(name).replace(/\\\*/g, '.*'));
 
@@ -349,7 +359,6 @@ function lookupToolset(name: string) {
     for (const toolset of [...settings.discoveredToolsets.values()].sort((a, b) => rcompare(a.version ?? "0.0.0", b.version ?? "0.0.0"))) {
         // return the first match given the regex
         if (rx.exec(toolset.name)) {
-            consolelog(`${elapsed()} found toolset ${toolset.name} for ${name}`);
             return toolset;
         }
     }
@@ -366,9 +375,10 @@ export async function identifyToolset(candidate: string): Promise<Toolset | unde
     if (!initialized) {
         throw new Error('Compiler detection has not been initialized. Call initialize() before calling this.');
     }
+    await initialized;
 
     // quick check if the given path is already in the discovered toolsets
-    const toolset = settings.discoveredToolsets.get(candidate);
+    const toolset = lookupToolset(candidate);
     if (toolset) {
         return toolset;
     }
@@ -386,50 +396,37 @@ export async function identifyToolset(candidate: string): Promise<Toolset | unde
     const fileInfo = await filepath.info(candidate);
 
     if (!fileInfo?.isFile) {
-        // ensure that init is done
-        await initialized;
-
-        consolelog(`${elapsed()} looking up toolset ${candidate}`);
-
         // if it's not a file let's quickly check for a match in the discovered toolsets
         const toolset = lookupToolset(candidate);
         if (toolset) {
-            return toolset;
+            return promise.resolve(toolset);
         }
 
-        consolelog(`${elapsed()} Didn't find entry for toolset ${candidate}`);
-        // we didn't find it, but the discovery may not be done yet, or hasn't been done.
-
-        consolelog(`${elapsed()} Checking if discovery is done`);
-        // make sure discovery is done before doing another lookup.
+        // we didn't find it, but the discovery may not be done yet, (or hasn't been done).
+        // make sure discovery is complete before doing another lookup.
         await (is.promise(discovering) ? discovering : getToolsets());
 
-        return lookupToolset(candidate);
+        return promise.resolve(lookupToolset(candidate));
     }
 
     if (fileInfo.isExecutable) {
         // otherwise, let's use the definitions to try to identify it.
-        return identify(candidate).then((result) => {promise.resolve(result); return promise;});
+        return identify(candidate).then((result) => promise.resolve(result));
     }
     // otherwise...
-    promise.resolve(undefined);
-    return undefined;
+    return promise.resolve(undefined);
 }
 
 async function identify(candidate: string, name?: string): Promise<Toolset | undefined> {
     const bn = basename(candidate);
-    consolelog(`Identify ${candidate} ${name} ${bn}`);
     for await (const definition of loadCompilerDefinitions(configurationFolders)) {
         if (!name || definition.name === name){
-            consolelog(`${elapsed()} Checking ${candidate} against ${definition.name}`);
             const resolver = createResolver(definition);
             await runConditions(definition, resolver);
 
             if (strings(definition.discover.binary).includes(basename(bn, isWindows ? '.exe' : undefined))) {
-                consolelog(`${elapsed()} Possible Match toolset ${definition.name} for ${candidate}`);
                 const toolset = await discover(candidate, definition);
                 if (toolset) {
-                    consolelog(`${elapsed()} Loaded toolset ${toolset.name} for ${candidate}`);
                     return toolset;
                 }
             }

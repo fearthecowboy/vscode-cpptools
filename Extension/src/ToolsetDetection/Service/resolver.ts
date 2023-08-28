@@ -5,16 +5,16 @@
 import * as os from 'os';
 import { homedir } from 'os';
 import { basename, delimiter, sep } from 'path';
-import { qcache } from '../Utility/Async/cache';
-import { readKey } from '../Utility/System/registry';
-import { CustomResolver } from '../Utility/Text/taggedLiteral';
-import { DefinitionFile, IntelliSenseConfiguration } from './interfaces';
+import { Cache } from '../../Utility/System/cache';
+import { readKey } from '../../Utility/System/registry';
+import { CustomResolver } from '../../Utility/Text/taggedLiteral';
+import { DefinitionFile, IntelliSenseConfiguration } from '../interfaces';
 
 export function createResolver(definition: DefinitionFile, compilerPath: string = ''): CustomResolver {
     // cache values/registry reads for the duration of the resolver.
     // (that is, scoped to the current definition)
     // this will drastically speed up resolution if an expensive variable is used repeatedly.
-    const valueCache = new Map<string, any>();
+    const valueCache = new Cache<any>();
 
     // the resolver function
     return async (prefix: string, expression: string): Promise<string> => {
@@ -25,11 +25,7 @@ export function createResolver(definition: DefinitionFile, compilerPath: string 
         }
 
         function cache(value: any) {
-            if (value) {
-                // only cache actual values, not falsy ones (undefined/null/''/0/false)
-                valueCache.set(cacheKey, value);
-            }
-            return value;
+            return valueCache.set(cacheKey, value);
         }
 
         switch (prefix) {
@@ -46,15 +42,7 @@ export function createResolver(definition: DefinitionFile, compilerPath: string 
             case 'HKLM':
             case 'HKCU':
                 const [path, value] = expression.split(';');
-                const regKey = await qcache(prefix + path, () => readKey(prefix, path));
-                /*!let regKey = regCache.get(expression);
-                if (!regKey) {
-                    regKey = await readKey(prefix, path);
-                    // we'll also cache the registry key hits too, since they're out-of-proc
-                    regCache.set(expression, regKey);
-                }
-                */
-                return cache(regKey?.properties[value]?.toString() || '');
+                return cache((await readKey(prefix, path))?.properties[value]?.toString() || '');
 
             case 'host':
                 switch (expression) {

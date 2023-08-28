@@ -10,7 +10,7 @@ import { existsSync } from 'fs';
 import { describe, it } from 'mocha';
 import { homedir } from 'os';
 import { resolve } from 'path';
-import { getToolsets, identifyToolset, initialize } from '../../src/ToolsetDetection/detectToolset';
+import { getToolsets, identifyToolset, initialize } from '../../src/ToolsetDetection/Service/detectToolset';
 import { verbose } from '../../src/Utility/Text/streams';
 import { isWindows } from '../../src/constants';
 import { when } from '../common/internal';
