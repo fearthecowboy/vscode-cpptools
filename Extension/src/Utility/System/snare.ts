@@ -89,7 +89,7 @@ export function startRemoting(connection: Worker | MessagePort, endpoint: Record
                     return;
                 }
                 // post the result back (call returned synchronously)
-                connection.postMessage({id:"$result",  sequence, result }); // call succeeded
+                connection.postMessage({id:"$result", sequence, result }); // call succeeded
             }
         } catch (error) {
             if (sequence) {
@@ -123,8 +123,8 @@ export function startRemoting(connection: Worker | MessagePort, endpoint: Record
             connection.postMessage(eventData);
             return result;
         },
-        notify: (id: string, ...parameters: any[]) => isMainThread ?  void ready.then(() => connection.postMessage({ id, parameters, sequence: 0 })) : connection.postMessage({ id, parameters, sequence: 0 }),
-        marshall: <T extends MarshalByReference>(ctor: new (remote: RemoteConnection, instance: number) => T, instance: number | Promise<number>) => instance ? is.promise(instance) ? instance.then(i => new ctor(remote, i)) :  new ctor(remote, instance) : undefined,
+        notify: (id: string, ...parameters: any[]) => isMainThread ? void ready.then(() => connection.postMessage({ id, parameters, sequence: 0 })) : connection.postMessage({ id, parameters, sequence: 0 }),
+        marshall: <T extends MarshalByReference>(ctor: new (remote: RemoteConnection, instance: number) => T, instance: number | Promise<number>) => instance ? is.promise(instance) ? instance.then(i => new ctor(remote, i)) : new ctor(remote, instance) : undefined,
         terminate: () => { if (isMainThread) { void (connection as Worker).terminate(); } }
     };
 

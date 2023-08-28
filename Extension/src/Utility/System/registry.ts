@@ -104,7 +104,7 @@ export async function readKey(hive: string, path: string): Promise<RegKey | unde
                 return result;
             }, {} as RegistryProperties)
         });
-    } catch  {
+    } catch {
         // failures will always return undefined
         return undefined;
     }

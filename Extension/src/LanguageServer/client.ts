@@ -3016,7 +3016,7 @@ export class DefaultClient implements Client {
             // temporary measure -
             // if there is an `.compiler` member present
             // then let's ask for the the toolset configuration for that.
-            if (is.string(modifiedConfig.compiler))  {
+            if (is.string(modifiedConfig.compiler)) {
                 try {
                     getOutputChannel().appendLine(`${elapsed()} ========= IDENTIFYING TOOLSET =========`);
                     let before = Date.now();

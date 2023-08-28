@@ -16,7 +16,7 @@ const remote = parentPort ? startRemoting(parentPort, {
     getToolsets: () => entries(getToolsets(), (key, toolset) => [key, toolset.name]),
     identifyToolset: (candidate: string) => ref(identifyToolset(candidate)),
     dispose: (identity: number) => unref(identity),
-    "Toolset.getIntellisenseConfiguration": (identity: number, compilerArgs: string[], options: any) => (getByRef<Toolset>(identity).getIntellisenseConfiguration(compilerArgs, options))
+    "Toolset.getIntellisenseConfiguration": (identity: number, compilerArgs: string[], options: any) => getByRef<Toolset>(identity).getIntellisenseConfiguration(compilerArgs, options)
 }) : fail("No parent port");
 
 export function log(text: string) {

@@ -23,7 +23,7 @@ export let $scenario = '';
 
 // loop thru the args and pick out --scenario=... and remove it from the $args and set $scenario
 process.argv.slice(2).filter(each => !(each.startsWith('--scenario=') && ($scenario = each.substring('--scenario='.length))));
-export const $args  = process.argv.slice(2).filter(each => !each.startsWith('--'));
+export const $args = process.argv.slice(2).filter(each => !each.startsWith('--'));
 export const $switches = process.argv.slice(2).filter(each => each.startsWith('--'));
 
 /** enqueue the call to the callback function to happen on the next available tick, and return a promise to the result */
@@ -311,7 +311,7 @@ const filters = [
 // remove unwanted messages from stdio
 function filterStdio() {
     process.stdout.write = function (...args: unknown[]) {
-        if (typeof(args[0]) === 'string') {
+        if (typeof args[0] === 'string') {
             const text = args[0];
 
             if (filters.some(each => text.match(each))) {
@@ -328,7 +328,7 @@ function filterStdio() {
     };
 
     process.stderr.write = function (...args: unknown[]) {
-        if (typeof(args[0]) === 'string') {
+        if (typeof args[0] === 'string') {
             const text = args[0];
 
             if (filters.some(each => text.match(each))) {
