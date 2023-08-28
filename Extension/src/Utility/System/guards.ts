@@ -34,7 +34,7 @@ export class is {
     }
 
     static promise(value: any): value is Promise<any> {
-        return isPromise(value) || (value && typeof (value.then) === 'function');
+        return isPromise(value) || (value && typeof value.then === 'function');
     }
 
     static iterable<T = unknown>(instance: any): instance is Iterable<T> {
@@ -75,7 +75,7 @@ export class is {
     }
 
     static emitter(instance: any): instance is Emitter {
-        return (typeof instance?.isKnownEvent) === 'function';
+        return typeof instance?.isKnownEvent === 'function';
     }
     static cancelled(instance: any): instance is 'Cancelled' {
         return instance === 'Cancelled';

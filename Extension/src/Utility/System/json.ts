@@ -7,7 +7,7 @@ import { is } from './guards';
 
 /** creates a JSON object,
  *
- * @param instance the object to clone into a plain old javascript object
+ * @param instance the object to clone into a plain old JavaScript object
  * @param options.format if true, the JSON will be formatted with 2 spaces
  * @param options.types the types to explicitly use getOwnPropertyNames instead of just enumerating the properties
  */
@@ -29,7 +29,7 @@ export function stringify(value: any, options?: { format?: boolean; types?: (new
             }
             visited.add(value);
         }
-        if (value?.constructor?.name === 'Error' || (types.filter(each => value instanceof each).length)) {
+        if (value?.constructor?.name === 'Error' || types.filter(each => value instanceof each).length) {
             const result = {} as Record<string, any>;
             Object.getOwnPropertyNames(value).forEach((propName) => result[propName] = (value as any)[propName]);
             return result;

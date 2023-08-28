@@ -82,7 +82,7 @@ async function dispatch<TResult>(event: Event<any, TResult>): Promise<void> {
                 resultValue = r as TResult | EventStatus;
 
                 if (is.cancelled(resultValue)) {
-                    event.completed.resolve(resultValue);  // the event has been cancelled
+                    event.completed.resolve(resultValue); // the event has been cancelled
                 }
             }
         } catch (e: any) {
@@ -298,7 +298,7 @@ export function subscribe<T extends Record<string, any>>(subscriber: Promise<Sub
                     if (filename) {
                         // it is a file, so load it as a function-let
                         const code = await readFile(filename, 'utf8');
-                        const fn = await sandbox.createFunction(code, ['event'], { filename, transpile: true });
+                        const fn = sandbox.createFunction(code, ['event'], { filename });
                         if (hasErrors(fn)) {
                             for (const each of fn) {
                                 console.error(each);
@@ -310,7 +310,7 @@ export function subscribe<T extends Record<string, any>>(subscriber: Promise<Sub
                     }
 
                     // if it's not a file, then treat it as a function-let
-                    const fn = await sandbox.createFunction(text, ['event'], { filename: `launch.json/${name}`, transpile: true });
+                    const fn = sandbox.createFunction(text, ['event'], { filename: `launch.json/${name}` });
                     if (hasErrors(fn)) {
                         for (const each of fn) {
                             console.error(each);
@@ -357,7 +357,7 @@ function expandVariableArgs<TInput = any, TResult = void>(variableArgs: any[], e
             return event;
 
         case 1:
-            if ((typeof first === 'string')) {
+            if (typeof first === 'string') {
                 event.text = first;
             } else {
                 event.text = '';
@@ -365,7 +365,7 @@ function expandVariableArgs<TInput = any, TResult = void>(variableArgs: any[], e
             }
             return event;
         case 2:
-            if ((typeof first === 'string')) {
+            if (typeof first === 'string') {
                 event.text = first;
                 event.data = second;
             } else {

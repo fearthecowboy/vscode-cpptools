@@ -16,7 +16,7 @@ export function taggedLiteral(templateString: string, templateVars: Record<strin
 }
 
 function parseTaggedLiteral(templateString: string) {
-    // must parse the inside of javascript tagged literal format
+    // must parse the inside of JavaScript tagged literal format
     // and ensure that escape sequences like \n \t \r \$ are handled correctly
     const result = {
         template: new Array<string>(),
@@ -82,7 +82,7 @@ function parseTaggedLiteral(templateString: string) {
                         expression += char;
                         continue;
                     }
-                    // error, fall thru
+                    // error, fall through
                 } else if (isIdentifierStart(char.codePointAt(0)!) || char === '-' || char === '/' || char === ';' || char === ' ') {
                     expression += char;
                     continue;
@@ -130,11 +130,11 @@ async function resolveValue(expression: string, context: Record<string, any>, cu
 
     if (prefix) {
         const variable = context[prefix];
-        if (variable !== undefined && variable !== null) {                  // did we get back an actual value
+        if (variable !== undefined && variable !== null) { // did we get back an actual value
             // its a child of a variable
-            return joinIfArray(suffix.includes(':') ?                         // is the suffix another expression?
-                resolveValue(suffix, variable) :                                // Yeah, resolve it
-                variable[suffix] ?? await customResolver(prefix, suffix) ?? '');      // No, return the member of the variable, or dynamic, or empty string
+            return joinIfArray(suffix.includes(':') ? // is the suffix another expression?
+                resolveValue(suffix, variable) : // Yeah, resolve it
+                variable[suffix] ?? await customResolver(prefix, suffix) ?? ''); // No, return the member of the variable, or dynamic, or empty string
         }
 
         // no variable by that name, so return the dynamic value, or an empty string

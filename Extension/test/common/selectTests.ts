@@ -15,8 +15,6 @@ import { returns } from '../../src/Utility/Async/returns';
 import { filepath } from '../../src/Utility/Filesystem/filepath';
 
 export const glob: (pattern: string, options?: IOptions | undefined) => Promise<string[]> = promisify(globSync);
-// eslint-disable-next-line @typescript-eslint/naming-convention
-//const MochaTest = (Mocha as any).default as (new (options?: Mocha.MochaOptions) => Mocha);
 
 // depending if this is pulled in as a ts-node script, or an already-compiled file in dist/...
 const $root = __dirname.includes('dist') ? resolve(__dirname, '..', '..', '..') : resolve(__dirname, '..', '..');
@@ -38,7 +36,7 @@ async function getScenarioInfo(val: string) {
             // no tests in this scenario have been compiled
             return undefined;
         }
-        const assets = (await filepath.isFolder('assets', folder)) ?? folder;
+        const assets = await filepath.isFolder('assets', folder) ?? folder;
 
         return {
             name,
@@ -83,7 +81,7 @@ export function run (testsRoot: string, cb: (error: any, failures?: number) => v
  */
     let location = '';
 
-    // scan thru the $args to find the --scenario=...
+    // scan through the $args to find the --scenario=...
     process.argv.slice(2).find(arg => arg.startsWith('--scenario=') && (location = arg.substring('--scenario='.length)));
 
     void getTestInfo(location, env.SCENARIO).then(async (testInfo) => {

@@ -99,7 +99,7 @@ export async function write(filePath: string, data: Buffer | string) {
             const textContent = content.toString();
 
             // normalize the line endings to the same as the current file.
-            data = textContent.indexOf('\r\n') > -1 ? data.replace(/\r\n|\n/g, '\r\n') :  data.replace(/\r\n|\n/g, '\n');
+            data = textContent.indexOf('\r\n') > -1 ? data.replace(/\r\n|\n/g, '\r\n') : data.replace(/\r\n|\n/g, '\n');
 
             // if the text content is a match, we don't have to change anything
             if (textContent === data) {
@@ -136,7 +136,7 @@ export async function updateFiles(files: string[], dest: string | Promise<string
 
 export async function go() {
     if (require.main) {
-        // loop thru the args and pick out the first non --arg and remove it from the $args and set $cmd
+        // loop through the args and pick out the first non --arg and remove it from the $args and set $cmd
         for (let i = 0; i < $args.length; i++) {
             const each = $args[i];
             if (require.main.exports[each]) {

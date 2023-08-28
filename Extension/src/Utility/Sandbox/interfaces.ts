@@ -16,7 +16,8 @@ export interface ScriptError {
 }
 
 export interface CreateOptions {
-    /** the "filename" of the source to compile */
+    /** the filename (or identity of the the source code, which may or may not be an actual filename,
+     * it could be any textual identifier that the caller wants to call it.) of the source to compile */
     filename?: string;
 
     /** the column in the physical file where the source starts
@@ -31,16 +32,6 @@ export interface CreateOptions {
      */
     lineOffset?: number;
 
-    /**
-     * set to true to invoke the TS transpiler (to resolve imports/exports/etc)
-     *
-     * Transpiling isn't super fast (~300ms), so this should only be turned on when the consumer is
-     * using exports/imports or other TS features.
-     *
-     * @default false
-     *
-    */
-    transpile?: boolean;
 }
 
 export type ArbitraryModule = Record<string, (...args: any[]) => unknown>;

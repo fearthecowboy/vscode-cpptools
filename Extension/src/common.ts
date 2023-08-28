@@ -203,7 +203,7 @@ export function isCpp(document: vscode.TextDocument): boolean {
 
 export function isCppPropertiesJson(document: vscode.TextDocument): boolean {
     return document.uri.scheme === "file" && (document.languageId === "json" || document.languageId === "jsonc") &&
-        (document.fileName.endsWith("c_cpp_properties.json"));
+        document.fileName.endsWith("c_cpp_properties.json");
 }
 let isWorkspaceCpp: boolean = false;
 export function setWorkspaceIsCpp(): void {
@@ -307,19 +307,19 @@ export function isUri(input: any): input is vscode.Uri {
 }
 
 export function isString(input: any): input is string {
-    return typeof (input) === "string";
+    return typeof input === "string";
 }
 
 export function isNumber(input: any): input is number {
-    return typeof (input) === "number";
+    return typeof input === "number";
 }
 
 export function isBoolean(input: any): input is boolean {
-    return typeof (input) === "boolean";
+    return typeof input === "boolean";
 }
 
 export function isObject(input: any): input is object {
-    return typeof (input) === "object";
+    return typeof input === "object";
 }
 
 export function isArray(input: any): input is any[] {
@@ -357,7 +357,7 @@ export function defaultExePath(): string {
 }
 
 export function findExePathInArgs(args: string[]): string | undefined {
-    const exePath: string | undefined = args.find((arg: string, index: number) => (arg.includes(".exe") || (index > 0 && args[index - 1] === "-o")));
+    const exePath: string | undefined = args.find((arg: string, index: number) => arg.includes(".exe") || (index > 0 && args[index - 1] === "-o"));
     if (exePath?.startsWith("/Fe")) {
         return exePath.substring(3);
     }
@@ -498,7 +498,7 @@ export async function fsStat(filePath: fs.PathLike): Promise<fs.Stats | undefine
 }
 
 export async function checkPathExists(filePath: string): Promise<boolean> {
-    return !!(await fsStat(filePath));
+    return !!await fsStat(filePath);
 }
 
 /** Test whether a file exists */
@@ -1092,7 +1092,7 @@ export function extractCompilerPathAndArgs(useLegacyBehavior: boolean, inputComp
         if (isCl(compilerPath) || checkExecutableWithoutExtensionExistsSync(compilerPath)) {
             // If the path ends with cl, or if a file is found at that path, accept it without further validation.
             compilerName = path.basename(compilerPath);
-        } else if ((compilerPath.startsWith("\"") || (os.platform() !== 'win32' && compilerPath.startsWith("'")))) {
+        } else if (compilerPath.startsWith("\"") || (os.platform() !== 'win32' && compilerPath.startsWith("'"))) {
             // If the string starts with a quote, treat it as a command line.
             // Otherwise, a path with a leading quote would not be valid.
             if (useLegacyBehavior) {
@@ -1259,7 +1259,7 @@ const allowedIdentifierUnicodeRanges: number[][] = [
     [0xB0000, 0xBFFFD], //
     [0xC0000, 0xCFFFD], //
     [0xD0000, 0xDFFFD], //
-    [0xE0000, 0xEFFFD]  // LANGUAGE TAG (U+E0001) - VARIATION SELECTOR-256 (U+E01EF)
+    [0xE0000, 0xEFFFD] // LANGUAGE TAG (U+E0001) - VARIATION SELECTOR-256 (U+E01EF)
 ];
 
 const disallowedFirstCharacterIdentifierUnicodeRanges: number[][] = [
@@ -1267,7 +1267,7 @@ const disallowedFirstCharacterIdentifierUnicodeRanges: number[][] = [
     [0x0300, 0x036F], // COMBINING GRAVE ACCENT - COMBINING LATIN SMALL LETTER X
     [0x1DC0, 0x1DFF], // COMBINING DOTTED GRAVE ACCENT - COMBINING RIGHT ARROWHEAD AND DOWN ARROWHEAD BELOW
     [0x20D0, 0x20FF], // COMBINING LEFT HARPOON ABOVE - COMBINING ASTERISK ABOVE
-    [0xFE20, 0xFE2F]  // COMBINING LIGATURE LEFT HALF - COMBINING CYRILLIC TITLO RIGHT HALF
+    [0xFE20, 0xFE2F] // COMBINING LIGATURE LEFT HALF - COMBINING CYRILLIC TITLO RIGHT HALF
 ];
 
 export function isValidIdentifier(candidate: string): boolean {
@@ -1340,7 +1340,7 @@ export function sequentialResolve<T>(items: T[], promiseBuilder: (item: T) => Pr
 export function normalizeArg(arg: string): string {
     arg = arg.trim();
     // Check if the arg is enclosed in backtick,
-    // or includes unescaped double-quotes (or single-quotes on windows),
+    // or includes unescaped double-quotes (or single-quotes on Windows),
     // or includes unescaped single-quotes on mac and linux.
     if (/^`.*`$/g.test(arg) || /.*[^\\]".*/g.test(arg) ||
         (process.platform.includes("win") && /.*[^\\]'.*/g.test(arg)) ||

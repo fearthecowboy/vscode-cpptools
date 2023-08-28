@@ -24,11 +24,11 @@ function showActiveHandles() {
     const open = (process as any)._getActiveHandles().filter(
         (each: any) =>
             !each.destroyed && // discard handles that claim they are destroyed.
-      !(each.fd === 0) &&  // ignore stdin/stdout/stderr
-      !(each.fd === 1) &&  // ignore stdin/stdout/stderr
-      !(each.fd === 2) &&  // ignore stdin/stdout/stderr
+      !(each.fd === 0) && // ignore stdin/stdout/stderr
+      !(each.fd === 1) && // ignore stdin/stdout/stderr
+      !(each.fd === 2) && // ignore stdin/stdout/stderr
       !(each instanceof MessagePort) && // ignore worker thread message ports
-      (each.listening) // keep servers that are still listening.
+      each.listening // keep servers that are still listening.
 
     );
 
@@ -46,7 +46,7 @@ export function addMisbehavingPromise(promise: Promise<any>) {
     misbehavingPromises?.add(promise);
     return promise;
 }
-(global as any).addMisbehavingPromise  = addMisbehavingPromise;
+(global as any).addMisbehavingPromise = addMisbehavingPromise;
 let MAX = 20;
 
 export function initDevModeChecks() {

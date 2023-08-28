@@ -76,7 +76,7 @@ export type AsynchIterable<T> = AsyncIterable<T> & {
 
 export function accumulator<T>(...iterables: Some<T>[]): AsynchIterable<T> {
     const iterators = new Map<number, Promise<Cursor<T>>>();
-    let completeWhenEmpty = iterables.length > 0;   // if we are given any items, they we auto-complete when we run out (so an add after the last item is yielded will throw)
+    let completeWhenEmpty = iterables.length > 0; // if we are given any items, they we auto-complete when we run out (so an add after the last item is yielded will throw)
     const signal = new Signal<boolean>();
 
     const result = combiner(iterables) as unknown as AsynchIterable<T>;
@@ -138,7 +138,7 @@ export type Some<T> = T | Promise<T> | AsyncIterable<T | undefined> | AsyncItera
 
 export async function* asyncOf<T>(...items: (undefined | Promise<undefined> | Some<T>)[]): AsyncIterable<NonNullable<T>> {
     if (is.asyncIterable(items)) {
-        for await (const item of items)  {
+        for await (const item of items) {
             if (is.asyncIterable(item) || is.iterable(item)) {
                 yield* item as any;
                 continue;
@@ -172,6 +172,6 @@ export async function* asyncOf<T>(...items: (undefined | Promise<undefined> | So
  * By using this race function instead, we can ignore those (the v8 JIT will easily optimize this out in production)
  */
 export function race(promises: Promise<any>[]): Promise<any> {
-    const addMisbehavingPromise: <T>(p: Promise<T>) => Promise<T> = ((global as any).addMisbehavingPromise);
+    const addMisbehavingPromise: <T>(p: Promise<T>) => Promise<T> = (global as any).addMisbehavingPromise;
     return addMisbehavingPromise ? addMisbehavingPromise(Promise.race(promises)) : Promise.race(promises);
 }
